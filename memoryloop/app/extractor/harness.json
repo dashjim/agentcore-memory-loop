@@ -1,0 +1,74 @@
+{
+  "name": "extractor",
+  "model": {
+    "provider": "bedrock",
+    "modelId": "global.anthropic.claude-sonnet-4-6"
+  },
+  "tools": [
+    {
+      "type": "inline_function",
+      "name": "recall_lessons",
+      "config": {
+        "inlineFunction": {
+          "description": "Recall previously learned lessons/guidelines from long-term memory before extracting. scope='strat' for cross-task strategic rules, 'tact' for current-document tactical notes.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "scope": {
+                "type": "string",
+                "enum": [
+                  "strat",
+                  "tact"
+                ]
+              },
+              "query": {
+                "type": "string",
+                "description": "what to recall"
+              }
+            },
+            "required": [
+              "scope"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "inline_function",
+      "name": "record_lesson",
+      "config": {
+        "inlineFunction": {
+          "description": "Persist a lesson learned during this extraction to long-term memory for future runs. Use scope='strat' for a reusable cross-document rule, 'tact' for a note specific to the current document.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "scope": {
+                "type": "string",
+                "enum": [
+                  "strat",
+                  "tact"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "description": "the lesson/guideline"
+              }
+            },
+            "required": [
+              "scope",
+              "text"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "skills": [
+    {
+      "path": "./skills/scope-extract"
+    }
+  ],
+  "memory": {
+    "mode": "disabled"
+  }
+}

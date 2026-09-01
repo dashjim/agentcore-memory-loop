@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AgentCore 自学习信息抽取 · 记忆效果面板</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --border: #dfe3e8;
+    --text: #1f2733;
+    --muted: #6b7480;
+    --grid: #e6e9ee;
+    --axis: #9aa2ad;
+    /* 克制的分类色（≤3）：主色 / 强调色 / 中性对比 */
+    --c1: #2f6fed;   /* 蓝 —— 覆盖率 / 折线 */
+    --c2: #e8873a;   /* 橙 —— 准确率 */
+    --c3: #4b5563;   /* 灰 —— 中性 */
+    --ok: #1f9d55;
+    --bad: #d64545;
+    --shadow: 0 1px 3px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1420;
+      --panel: #161c28;
+      --border: #2a3342;
+      --text: #e6eaf0;
+      --muted: #93a0b0;
+      --grid: #232c3a;
+      --axis: #55617a;
+      --c1: #5b91ff;
+      --c2: #f2a35a;
+      --c3: #9aa6b6;
+      --ok: #46c586;
+      --bad: #f0736f;
+      --shadow: 0 1px 3px rgba(0,0,0,.4);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    font-size: 14px; line-height: 1.5;
+  }
+  header {
+    padding: 16px 24px; background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  header h1 { font-size: 18px; margin: 0; font-weight: 650; }
+  .badge {
+    font-size: 12px; padding: 2px 8px; border-radius: 999px;
+    border: 1px solid var(--border); color: var(--muted);
+  }
+  .badge.mock { color: #fff; background: var(--c2); border-color: var(--c2); }
+  .badge.live { color: #fff; background: var(--ok); border-color: var(--ok); }
+  main { max-width: 1200px; margin: 0 auto; padding: 20px; }
+  .grid { display: grid; gap: 16px; }
+  .cols-2 { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 860px) { .cols-2 { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; box-shadow: var(--shadow);
+  }
+  .card h2 { font-size: 15px; margin: 0 0 4px; font-weight: 650; }
+  .card .sub { color: var(--muted); font-size: 12.5px; margin: 0 0 12px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 12.5px; color: var(--muted); }
+  select, button {
+    font: inherit; color: var(--text); background: var(--panel);
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px;
+  }
+  select { min-width: 220px; }
+  .radios { display: flex; gap: 14px; padding-top: 4px; }
+  .radios label, .chk label { color: var(--text); font-size: 13.5px; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  button.primary { background: var(--c1); color: #fff; border-color: var(--c1); cursor: pointer; font-weight: 600; }
+  button.ghost { cursor: pointer; }
+  button:disabled { opacity: .55; cursor: not-allowed; }
+  .statusline { margin-top: 14px; padding: 10px 12px; background: var(--bg); border-radius: 8px; font-size: 13px; color: var(--muted); display: flex; gap: 20px; flex-wrap: wrap; }
+  .statusline b { color: var(--text); font-weight: 600; }
+  /* 完成判定卡片 */
+  .metrics { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  .metric { flex: 1 1 120px; min-width: 120px; }
+  .metric .k { font-size: 12.5px; color: var(--muted); }
+  .metric .v { font-size: 26px; font-weight: 700; margin-top: 2px; }
+  .lamp { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); }
+  .dot { width: 16px; height: 16px; border-radius: 50%; background: var(--c3); box-shadow: 0 0 0 4px rgba(0,0,0,.04); }
+  .dot.on { background: var(--ok); box-shadow: 0 0 0 4px rgba(31,157,85,.18); }
+  .dot.off { background: var(--bad); box-shadow: 0 0 0 4px rgba(214,69,69,.15); }
+  .pass { color: var(--ok); font-weight: 700; }
+  .fail { color: var(--bad); font-weight: 700; }
+  /* 图例 */
+  .legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--muted); margin-bottom: 6px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  /* 规则两栏 */
+  .rules { list-style: none; margin: 0; padding: 0; }
+  .rules li { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; font-size: 13px; background: var(--bg); }
+  .rules .empty { color: var(--muted); border-style: dashed; }
+  /* 表格 */
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th, td { border-bottom: 1px solid var(--border); padding: 7px 9px; text-align: right; white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; text-align: right; position: sticky; top: 0; background: var(--panel); }
+  td.l, th.l { text-align: left; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  svg text { fill: var(--axis); font-size: 11px; }
+  svg .lbl { fill: var(--text); font-size: 11px; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--c1); border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: -2px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>AgentCore 自学习信息抽取 · 记忆效果面板</h1>
+  <span id="modeBadge" class="badge">加载中…</span>
+</header>
+
+<main class="grid">
+
+  <!-- 顶部控件区 -->
+  <section class="card">
+    <div class="controls">
+      <div class="field">
+        <label for="docSel">文档</label>
+        <select id="docSel"></select>
+      </div>
+      <div class="field">
+        <label>记忆模式</label>
+        <div class="radios">
+          <label><input type="radio" name="mode" value="none" /> 无记忆</label>
+          <label><input type="radio" name="mode" value="episodic" /> Episodic</label>
+          <label><input type="radio" name="mode" value="custom" checked /> 自定义双策略</label>
+        </div>
+      </div>
+      <div class="field chk">
+        <label><input type="checkbox" id="warmChk" /> 预热记忆</label>
+      </div>
+      <div class="field">
+        <button id="runBtn" class="primary">跑抽取</button>
+      </div>
+      <div class="field">
+        <button id="clearBtn" class="ghost">清除记忆</button>
+      </div>
+    </div>
+    <div class="statusline" id="statusLine">
+      <span>状态：<b id="stState">就绪</b></span>
+      <span>耗时：<b id="stElapsed">—</b></span>
+      <span>Token（输入/输出/合计）：<b id="stTokens">—</b></span>
+      <span>反思轮数：<b id="stRev">—</b></span>
+    </div>
+  </section>
+
+  <!-- 完成判定卡片 -->
+  <section class="card">
+    <h2>完成判定</h2>
+    <p class="sub">抽取完成指示灯：覆盖率 ≥ 0.9 且自审通过 → 绿灯</p>
+    <div class="metrics">
+      <div class="metric"><div class="k">自审</div><div class="v" id="mSelf">—</div></div>
+      <div class="metric"><div class="k">覆盖率</div><div class="v" id="mCov">—</div></div>
+      <div class="metric"><div class="k">准确率</div><div class="v" id="mAcc">—</div></div>
+      <div class="lamp"><span id="lampDot" class="dot"></span><span id="lampText">尚无运行</span></div>
+    </div>
+  </section>
+
+  <div class="grid cols-2">
+    <!-- 实验 A -->
+    <section class="card">
+      <h2>实验 A · 记忆生效（越跑越好）</h2>
+      <p class="sub">选定文档、每种记忆模式按时间排序的历次运行 → 覆盖率随重跑的变化（Episodic 应逐步上升）</p>
+      <div id="chartAlegend"></div>
+      <div id="chartA"></div>
+    </section>
+
+    <!-- 实验 B -->
+    <section class="card">
+      <h2>实验 B · 战略记忆迁移</h2>
+      <p class="sub">同一文档在 无记忆 / Episodic / 自定义 三模式下的首轮覆盖率与准确率对比</p>
+      <div id="chartB"></div>
+    </section>
+  </div>
+
+  <!-- 实验 C -->
+  <section class="card">
+    <h2>实验 C · 记忆可观测</h2>
+    <p class="sub">实时读取 AgentCore Memory 中沉淀的规则（M_strat 战略 / M_tact 战术）</p>
+    <div class="grid cols-2">
+      <div>
+        <div class="legend"><span><i style="background:var(--c1)"></i>M_strat · 战略记忆（跨任务）</span></div>
+        <ul class="rules" id="stratList"></ul>
+      </div>
+      <div>
+        <div class="legend"><span><i style="background:var(--c2)"></i>M_tact · 战术记忆（当前文档）</span></div>
+        <ul class="rules" id="tactList"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 历史表 -->
+  <section class="card">
+    <h2>运行历史</h2>
+    <p class="sub">当前文档全部运行记录（全字段）</p>
+    <div class="tablewrap"><table id="histTable"></table></div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const api = {
+  async get(u) { const r = await fetch(u); return r.json(); },
+  async post(u, b) { const r = await fetch(u, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(b) }); return r.json(); },
+};
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); }
+function fmtPct(x) { return (x == null) ? '—' : (Math.round(x*1000)/10).toFixed(1) + '%'; }
+// ts 兼容两种形态：epoch 秒（mock）或 ISO 字符串（真实 runstore 存 TEXT）
+function tsMs(v) { if (v == null) return 0; if (typeof v === 'number') return v * 1000; const n = Number(v); return Number.isFinite(n) ? n * 1000 : Date.parse(v); }
+function fmtTs(v) { const ms = tsMs(v); return ms ? new Date(ms).toLocaleString('zh-CN') : String(v ?? ''); }
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function currentMode() { return document.querySelector('input[name=mode]:checked').value; }
+function currentDoc() { return $('#docSel').value; }
+
+const MODE_LABEL = { none: '无记忆', episodic: 'Episodic', custom: '自定义' };
+
+// ---------------- 图表：折线（实验 A） ----------------
+function lineChart(el, points) {
+  // points: [{x:1, y:4}, ...]  X=第几次运行, Y=反思轮数
+  const W = 480, H = 240, m = { t: 16, r: 16, b: 40, l: 40 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  if (!points.length) { el.innerHTML = emptySvg(W, H, '暂无该文档运行数据'); return; }
+  const maxY = Math.max(4, ...points.map(p => p.y));
+  const n = points.length;
+  const xOf = (i) => m.l + (n === 1 ? iw/2 : iw * i / (n-1));
+  const yOf = (v) => m.t + ih - ih * v / maxY;
+  let g = '';
+  // 网格 + Y 轴刻度（整数轮）
+  for (let v = 0; v <= maxY; v++) {
+    const y = yOf(v);
+    g += `<line x1="${m.l}" y1="${y}" x2="${m.l+iw}" y2="${y}" stroke="${css('--grid')}"/>`;
+    g += `<text x="${m.l-8}" y="${y+4}" text-anchor="end">${v}</text>`;
+  }
+  // X 轴标签
+  points.forEach((p, i) => {
+    g += `<text x="${xOf(i)}" y="${H-m.b+18}" text-anchor="middle">第${p.x}次</text>`;
+  });
+  // 折线
+  const path = points.map((p,i) => `${i?'L':'M'}${xOf(i)},${yOf(p.y)}`).join(' ');
+  g += `<path d="${path}" fill="none" stroke="${css('--c1')}" stroke-width="2.5"/>`;
+  points.forEach((p,i) => {
+    g += `<circle cx="${xOf(i)}" cy="${yOf(p.y)}" r="4" fill="${css('--c1')}"/>`;
+    g += `<text class="lbl" x="${xOf(i)}" y="${yOf(p.y)-9}" text-anchor="middle">${p.y}</text>`;
+  });
+  // 轴标题
+  g += `<text x="${m.l+iw/2}" y="${H-4}" text-anchor="middle">运行序次</text>`;
+  g += `<text transform="translate(12,${m.t+ih/2}) rotate(-90)" text-anchor="middle">反思轮数</text>`;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="反思轮数折线图">
+    <line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${m.t+ih}" stroke="${css('--axis')}"/>
+    <line x1="${m.l}" y1="${m.t+ih}" x2="${m.l+iw}" y2="${m.t+ih}" stroke="${css('--axis')}"/>
+    ${g}</svg>`;
+}
+
+// ---------------- 图表：多线折线（实验 A · 覆盖率随重跑） ----------------
+function multiLineChart(el, series) {
+  // series: [{name,color,points:[{x,y}]}] ; y ∈ 0..1（覆盖率）
+  const W = 520, H = 260, m = { t: 16, r: 16, b: 40, l: 44 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const maxX = Math.max(1, ...series.flatMap(s => s.points.map(p => p.x)));
+  const has = series.some(s => s.points.length);
+  if (!has) { el.innerHTML = emptySvg(W, H, '暂无该文档运行数据'); return; }
+  const xOf = (x) => m.l + (maxX === 1 ? iw/2 : iw * (x-1) / (maxX-1));
+  const yOf = (v) => m.t + ih - ih * v;   // 0..1
+  let g = '';
+  for (let p = 0; p <= 1.0001; p += 0.25) {
+    const y = yOf(p);
+    g += `<line x1="${m.l}" y1="${y}" x2="${m.l+iw}" y2="${y}" stroke="${css('--grid')}"/>`;
+    g += `<text x="${m.l-8}" y="${y+4}" text-anchor="end">${Math.round(p*100)}%</text>`;
+  }
+  for (let x = 1; x <= maxX; x++) {
+    g += `<text x="${xOf(x)}" y="${H-m.b+18}" text-anchor="middle">第${x}次</text>`;
+  }
+  series.forEach(s => {
+    const pts = s.points.filter(p => p.y != null);
+    if (!pts.length) return;
+    const path = pts.map((p,i) => `${i?'L':'M'}${xOf(p.x)},${yOf(p.y)}`).join(' ');
+    g += `<path d="${path}" fill="none" stroke="${s.color}" stroke-width="2.5"/>`;
+    pts.forEach(p => {
+      g += `<circle cx="${xOf(p.x)}" cy="${yOf(p.y)}" r="4" fill="${s.color}"/>`;
+      g += `<text class="lbl" x="${xOf(p.x)}" y="${yOf(p.y)-9}" text-anchor="middle">${Math.round(p.y*100)}%</text>`;
+    });
+  });
+  g += `<text x="${m.l+iw/2}" y="${H-4}" text-anchor="middle">运行序次</text>`;
+  g += `<text transform="translate(12,${m.t+ih/2}) rotate(-90)" text-anchor="middle">覆盖率</text>`;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="覆盖率随重跑折线图">
+    <line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${m.t+ih}" stroke="${css('--axis')}"/>
+    <line x1="${m.l}" y1="${m.t+ih}" x2="${m.l+iw}" y2="${m.t+ih}" stroke="${css('--axis')}"/>
+    ${g}</svg>`;
+}
+
+// ---------------- 图表：分组柱（实验 B） ----------------
+function groupedBar(el, cats, series) {
+  // cats: ['无记忆','Episodic','自定义'] ; series: [{name,color,vals:[...]}] 值域 0..1
+  const W = 480, H = 240, m = { t: 16, r: 16, b: 40, l: 44 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  if (!cats.length) { el.innerHTML = emptySvg(W, H, '暂无对比数据'); return; }
+  const yOf = (v) => m.t + ih - ih * v;
+  let g = '';
+  for (let p = 0; p <= 1.0001; p += 0.25) {
+    const y = yOf(p);
+    g += `<line x1="${m.l}" y1="${y}" x2="${m.l+iw}" y2="${y}" stroke="${css('--grid')}"/>`;
+    g += `<text x="${m.l-8}" y="${y+4}" text-anchor="end">${Math.round(p*100)}%</text>`;
+  }
+  const groupW = iw / cats.length;
+  const nS = series.length;
+  const barW = Math.min(34, groupW / (nS + 1));
+  cats.forEach((c, ci) => {
+    const gx = m.l + groupW * ci + (groupW - barW*nS - 6*(nS-1)) / 2;
+    series.forEach((s, si) => {
+      const v = s.vals[ci];
+      const x = gx + si * (barW + 6);
+      if (v != null) {
+        const y = yOf(v), h = m.t + ih - y;
+        g += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="${s.color}"/>`;
+        g += `<text class="lbl" x="${x+barW/2}" y="${y-5}" text-anchor="middle">${Math.round(v*100)}%</text>`;
+      } else {
+        g += `<text x="${x+barW/2}" y="${m.t+ih-4}" text-anchor="middle">无</text>`;
+      }
+    });
+    g += `<text x="${m.l + groupW*ci + groupW/2}" y="${H-m.b+18}" text-anchor="middle">${c}</text>`;
+  });
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="覆盖率准确率对比柱图">
+    <line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${m.t+ih}" stroke="${css('--axis')}"/>
+    <line x1="${m.l}" y1="${m.t+ih}" x2="${m.l+iw}" y2="${m.t+ih}" stroke="${css('--axis')}"/>
+    ${g}</svg>`;
+}
+function legend(items) {
+  return `<div class="legend">${items.map(i=>`<span><i style="background:${i.color}"></i>${i.name}</span>`).join('')}</div>`;
+}
+function emptySvg(W,H,msg){ return `<svg viewBox="0 0 ${W} ${H}" width="100%"><text x="${W/2}" y="${H/2}" text-anchor="middle" fill="${css('--muted')}">${msg}</text></svg>`; }
+
+// ---------------- 数据加载 ----------------
+async function loadStatus() {
+  const s = await api.get('/api/status');
+  const b = $('#modeBadge');
+  if (s.mock) { b.className = 'badge mock'; b.textContent = 'MOCK 模式（无 AWS，内置假数据）'; }
+  else { b.className = 'badge live'; b.textContent = '真实模式（src 已接入）'; }
+}
+
+async function loadDocs() {
+  const docs = await api.get('/api/docs');
+  const sel = $('#docSel');
+  if (docs.error) { toast('文档加载失败：' + docs.error); return; }
+  sel.innerHTML = docs.map(d => `<option value="${d.name}">${d.name}（${d.num_pages}页${d.has_gt?' · 有GT':' · 无GT'}）</option>`).join('');
+}
+
+async function loadRuns() {
+  const doc = currentDoc();
+  const runs = await api.get('/api/runs?doc=' + encodeURIComponent(doc));
+  if (runs.error) { toast('运行历史加载失败：' + runs.error); return; }
+  renderExpA(runs);
+  renderExpB(runs);
+  renderHistory(runs);
+}
+
+// 实验 A：三模式各自按时间序次的覆盖率折线（看"越跑越好"）
+function renderExpA(runs) {
+  const modes = ['none','episodic','custom'];
+  const colors = { none: '#94a3b8', episodic: css('--c1'), custom: css('--c2') };
+  const series = modes.map(md => {
+    const seq = runs.filter(r => r.memory_mode === md).sort((a,b)=>tsMs(a.ts)-tsMs(b.ts));
+    return { name: MODE_LABEL[md], color: colors[md],
+             points: seq.map((r,i) => ({ x: i+1, y: r.coverage })) };
+  });
+  $('#chartAlegend').innerHTML = legend(series.map(s => ({ name: s.name, color: s.color })));
+  multiLineChart($('#chartA'), series);
+}
+
+// 实验 B：三模式各取首轮（时间最早）覆盖率/准确率
+function renderExpB(runs) {
+  const modes = ['none','episodic','custom'];
+  const cats = modes.map(m => MODE_LABEL[m]);
+  const first = (m) => runs.filter(r=>r.memory_mode===m).sort((a,b)=>tsMs(a.ts)-tsMs(b.ts))[0];
+  const cov = modes.map(m => { const r=first(m); return r ? r.coverage : null; });
+  const acc = modes.map(m => { const r=first(m); return r ? r.accuracy : null; });
+  $('#chartB').innerHTML = legend([{name:'覆盖率',color:css('--c1')},{name:'准确率',color:css('--c2')}]) + '<div id="chartBsvg"></div>';
+  groupedBar($('#chartBsvg'), cats, [
+    { name:'覆盖率', color: css('--c1'), vals: cov },
+    { name:'准确率', color: css('--c2'), vals: acc },
+  ]);
+}
+
+const COLS = [
+  ['run_id','运行ID','l'], ['ts','时间','r'], ['memory_mode','模式','l'], ['warm','预热','r'],
+  ['revision_count','反思轮数','r'], ['elapsed_sec','耗时(s)','r'],
+  ['input_tokens','入Token','r'], ['output_tokens','出Token','r'], ['total_tokens','总Token','r'],
+  ['coverage','覆盖率','r'], ['accuracy','准确率','r'], ['self_review_pass','自审','r'],
+  ['num_extracted','抽取数','r'], ['num_gt','GT数','r'], ['notes','备注','l'],
+];
+function renderHistory(runs) {
+  const rows = [...runs].sort((a,b)=>tsMs(b.ts)-tsMs(a.ts));
+  const head = '<tr>' + COLS.map(c=>`<th class="${c[2]}">${c[1]}</th>`).join('') + '</tr>';
+  const body = rows.map(r => '<tr>' + COLS.map(c => {
+    let v = r[c[0]];
+    if (c[0]==='ts') v = fmtTs(v);
+    else if (c[0]==='memory_mode') v = MODE_LABEL[v] || v;
+    else if (c[0]==='warm') v = v ? '是' : '否';
+    else if (c[0]==='self_review_pass') v = v ? '✓' : '✗';
+    else if (c[0]==='coverage'||c[0]==='accuracy') v = fmtPct(v);
+    return `<td class="${c[2]}">${v==null?'':v}</td>`;
+  }).join('') + '</tr>').join('');
+  $('#histTable').innerHTML = head + body;
+}
+
+async function loadMemory() {
+  const [strat, tact] = await Promise.all([
+    api.get('/api/memory?scope=strat'),
+    api.get('/api/memory?scope=tact'),
+  ]);
+  fillRules('#stratList', strat);
+  fillRules('#tactList', tact);
+}
+function fillRules(sel, res) {
+  const el = $(sel);
+  if (res.error) { el.innerHTML = `<li class="empty">读取失败：${res.error}</li>`; return; }
+  const items = res.lessons || [];
+  el.innerHTML = items.length
+    ? items.map(t => `<li>${escapeHtml(t)}</li>`).join('')
+    : '<li class="empty">（暂无规则 —— 尚未沉淀或已清除）</li>';
+}
+function escapeHtml(s){ return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+// 更新完成判定 + 状态行
+function applyRun(run) {
+  $('#stState').textContent = '完成';
+  $('#stElapsed').textContent = run.elapsed_sec + ' 秒';
+  $('#stTokens').textContent = `${run.input_tokens} / ${run.output_tokens} / ${run.total_tokens}`;
+  $('#stRev').textContent = run.revision_count;
+  const pass = !!run.self_review_pass;
+  $('#mSelf').innerHTML = pass ? '<span class="pass">✓ 通过</span>' : '<span class="fail">✗ 未过</span>';
+  $('#mCov').textContent = fmtPct(run.coverage);
+  $('#mAcc').textContent = fmtPct(run.accuracy);
+  const done = (run.coverage >= 0.9) && pass;
+  const dot = $('#lampDot');
+  dot.className = 'dot ' + (done ? 'on' : 'off');
+  $('#lampText').innerHTML = done
+    ? '<span class="pass">抽取完成</span>（覆盖率 ≥ 90% 且自审通过）'
+    : '<span class="fail">未完成</span>（覆盖率或自审未达标）';
+}
+
+// ---------------- 事件 ----------------
+$('#runBtn').addEventListener('click', async () => {
+  const btn = $('#runBtn');
+  btn.disabled = true;
+  $('#stState').innerHTML = '<span class="spinner"></span> 抽取中…';
+  const body = { doc_name: currentDoc(), memory_mode: currentMode(), warm: $('#warmChk').checked };
+  const run = await api.post('/api/run', body);
+  btn.disabled = false;
+  if (run.error) { $('#stState').textContent = '失败'; toast('抽取失败：' + run.error); return; }
+  applyRun(run);
+  await Promise.all([loadRuns(), loadMemory()]);
+  toast('抽取完成');
+});
+
+$('#clearBtn').addEventListener('click', async () => {
+  const mode = currentMode();
+  const res = await api.post('/api/clear-memory', { memory_mode: mode });
+  if (res.error) { toast('清除失败：' + res.error); return; }
+  await loadMemory();
+  toast(`已清除记忆（模式：${MODE_LABEL[mode] || mode}）`);
+});
+
+$('#docSel').addEventListener('change', () => { loadRuns(); });
+// 切换记忆模式：刷新（实验 A 现展示全部模式覆盖率折线，不依赖当前选中模式）
+document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', () => loadRuns()));
+
+// ---------------- 初始化 ----------------
+(async function init() {
+  await loadStatus();
+  await loadDocs();
+  await loadRuns();
+  await loadMemory();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+# ===== 机密数据（绝不上传）=====
+# 真实工业文档语料 + 抽取字段定义
+/input/
+# 含从机密文档抽取出的内容
+/runs.db
+# 账号 ID + 真实资源 ARN
+/config.local.json
+
+# ===== 账号/部署态（环境相关）=====
+memoryloop/agentcore/.env.local
+memoryloop/agentcore/.cli/
+memoryloop/agentcore/aws-targets.json
+memoryloop/agentcore/deployed-state.json
+memoryloop/agentcore/.llm-context/aws-targets.ts
+
+# ===== 依赖 / 构建 / 缓存 =====
+node_modules/
+**/node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+memoryloop/agentcore/cdk/cdk.out/
+*.log
+
+# ===== 含抽取内容的截图（默认排除）=====
+docs/e2e_overview.png
+docs/e2e_history.png
+docs/e2e_expC_lessons.png
+docs/e2e_expA_rounds_cov.png

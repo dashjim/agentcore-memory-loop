@@ -1,0 +1,17 @@
+{
+  "name": "extractor_ep",
+  "model": {
+    "provider": "bedrock",
+    "modelId": "global.anthropic.claude-sonnet-4-6"
+  },
+  "tools": [],
+  "skills": [
+    {
+      "path": "./skills/scope-extract-native"
+    }
+  ],
+  "memory": {
+    "mode": "existing",
+    "name": "episodicMem"
+  }
+}
