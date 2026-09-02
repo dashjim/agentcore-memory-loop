@@ -279,7 +279,11 @@ custom 模式跨 4 次运行，`record_lesson("strat", …)` 沉淀出 **3 个�
 **战略 vs 战术两种记忆（对应博客）**：本设计的自定义双策略实现了博客提出的两类记忆——**战略记忆 M_strat**（`/strategy/{actorId}`，跨文档通用，即上述 3 条规则）与**战术记忆 M_tact**（`/tactic/{actorId}/{md5(doc)}`，仅当前文档）。实测本轮 **M_strat=3 条（自进化到 15 条规则），M_tact=0 条**——agent 判定其学到的经验多为跨文档可复用，故全部沉淀为战略记忆；战术分区为空。这说明模型在本任务上倾向于抽象出通用规则，而非文档专属技巧。
 
 ### 6.4 实验 C · 记忆可观测（二）：episodic 的情节记忆（真机读取 `episodicMem`）
-episodic 模式下，AgentCore 的 EPISODIC 策略从每次运行的轨迹**自动提炼出"情节记录"**（`/episodes/memory-loop` 分区，`retrieve_memory_records` 读出 5 条），每条含 `situation / intent / assessment / reflection` 四要素。摘录（原文）：
+episodic 模式下，AgentCore 的 EPISODIC 策略从每次运行的轨迹**自动提炼出"情节记录"**（`/episodes/memory-loop` 分区，共 15 条，`retrieve_memory_records` 读出）。
+
+**记录结构与召回方式（实测）**：每条记录的 `content.text` 是**一整段 JSON，含 `situation / intent / assessment / justification / reflection` 全部字段**（非分字段存储）。`retrieve_memory_records` 的语义检索**对整条记录（全部字段拼成的整段文本）做向量匹配**，不是只匹配某一个字段——证据：用只出现在 `reflection` 里的词"幂等消息 重复推送"检索，排第一的正是该 reflection 所在记录，说明 reflection 也参与了匹配。此外 `metadata` 带结构化标签（如 `x-amz-agentcore-memory-episode-assessment: SUCCESS`），可用 `metadataFilters` 按"成功/失败"等**精确过滤**，与语义检索互补。（单关键词查询区分度不高、score 多在 0.35~0.39，因整段向量会稀释单个短语，也印证"整条匹配"。）
+
+以下摘录 5 条（原文；完整 15 条见附件 `docs/memory-dump.md`）：
 
 - **记录1**（assessment: Yes）：`situation:"…初始两轮助手输出存在格式不合规问题（字段为空或输出格式不符合要求），用户随后明确指出问题并要求修正。" intent:"提取五字段合规 JSON 数组并附 __META__ 修订次数" justification:"经过三轮交互，最终输出纯 JSON 数组，所有条目五字段非空，附 __META__ {revision_count:2}"`
 - **记录2**（Yes）：`"…最终在第三轮成功输出约 80 条记录的合规 JSON…五字段均非空"`
