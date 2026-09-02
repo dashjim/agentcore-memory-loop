@@ -336,3 +336,43 @@ episodic 模式下，AgentCore 的 EPISODIC 策略从每次运行的轨迹**自�
 - 未做：WebUI Cognito 认证 + CloudFront 部署、ALP portal 包、θ_base 的 Optimization 慢环。
 
 **复现**：见 [README](../README.md) §5；数据在 `runs.db`（未随仓库上传），截图见 `docs/e2e_expA_coverage.png`、`e2e_expB_modes.png`。
+
+---
+
+## 附录 A. AgentCore Memory 进阶：metadata 过滤、EPISODIC 配置、namespace 共享设计
+
+### A.1 记录的 metadata 可过滤字段（实测）
+episodic 记忆记录除语义 `content` 外，带一组结构化 `metadata`，可用 `retrieve_memory_records(..., searchCriteria={"metadataFilters":[...]})` **精确过滤**（与语义检索互补）：
+
+| metadata 键 | 实测取值 | 用途 |
+|---|---|---|
+| `x-amz-agentcore-memory-episode-assessment` | `SUCCESS` / `FAILURE` | **按成败过滤**——例如只召回成功经验、或专门复盘失败情节 |
+| `x-amz-agentcore-memory-recordType` | `BASE` | 记录类型 |
+| `x-amz-agentcore-memory-createdAt` / `updatedAt` | 时间戳 | 按时间过滤/排序 |
+
+（本项目 15 条情节中既有 `SUCCESS` 也有 `FAILURE`，见 §6.4；`FAILURE` 多为"会话不完整/未产出"的情节。）
+
+### A.2 EPISODIC 策略配置与提炼时机（`get_memory` 实读）
+```
+strategyId: episodicMem_Episodic-DhAbjWHA6w   type: EPISODIC   status: ACTIVE
+namespaces（episode 存储）:            /episodes/{actorId}/{sessionId}
+reflection.namespaces（反思汇总）:      /episodes/{actorId}
+```
+- **提炼时机**：**异步**——每次运行（一个 session）结束后，EPISODIC 策略在后台从该 session 的事件轨迹提炼出一条"情节 + 反思"，并**自动判定 assessment（SUCCESS/FAILURE）**。因此是"跑完过一会儿才出现"，不是即时（这也是 custom 模式选择 `list_events` 即时读、而非依赖策略提炼的原因，见 §2.2.1）。
+- **命名空间**：episode 按 `actorId + sessionId` 归档、reflection 汇总到 `actorId` 级——与下文博客的默认模式一致。
+
+### A.3 记忆隔离 vs 共享的 namespace 设计模式
+> 参考：AWS 博客 [Organizing agents' memory at scale: namespace design patterns in AgentCore Memory](https://aws.amazon.com/cn/blogs/machine-learning/organizing-agents-memory-at-scale-namespace-design-patterns-in-agentcore-memory/)
+
+- **默认：按用户（actor）隔离**。EPISODIC 推荐模式：Episodes=`/actor/{actorId}/session/{sessionId}/episodes/`、Reflections=`/actor/{actorId}/`。即**每个用户的 episodic 记忆相互隔离**，用户 A 的轨迹不会被 B 看到。（本项目实测的 `/episodes/{actorId}/{sessionId}` 与 `/episodes/{actorId}` 即此模式。）
+- **跨用户共享：用"反转命名空间"模式**——把 `{actorId}` 放到记忆类型**路径之下**而非顶层，如 `/shared-episodes/{actorId}/session/{sessionId}/`；检索时用 `namespacePath="/shared-episodes/"` 做**层级检索**即可跨所有用户搜索，同时保留按用户的组织结构。
+- **`namespace` vs `namespacePath`（关键区别）**：
+
+  | 字段 | 匹配方式 | 适用 |
+  |---|---|---|
+  | `namespace` | **精确匹配** | 只查某用户的特定记忆 |
+  | `namespacePath` | **层级匹配（含所有子路径）** | 跨用户/跨会话搜索 |
+
+  （本项目实测：用父路径 `/episodes/memory-loop` 检索能命中子路径 `/episodes/memory-loop/{hash}` 的记录，即层级匹配行为。）
+- **安全控制（共享务必配 IAM）**：用条件键 `bedrock-agentcore:namespace`（精确）/ `bedrock-agentcore:namespacePath`（层级）限定访问；用 `${aws:PrincipalTag/userId}` 动态限定"用户只能访问自己的数据"，或放开给管理员跨用户访问。
+- **小结**：episodic 记忆**可**多用户共享，但非默认——需 ① 调整命名空间模板把 `{actorId}` 下沉、② 用 `namespacePath` 层级检索、③ 配套 IAM 策略控边界。
