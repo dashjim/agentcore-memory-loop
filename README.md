@@ -1,5 +1,8 @@
 # Memory-Loop：AgentCore 自学习信息抽取（复现博客核心 Memory 效果）
 
+> **复现自 AWS 博客**：[Self-learning evolvable agents for cultural tourism info extraction with AgentCore](https://aws.amazon.com/cn/blogs/china/self-learning-evolvable-agents-for-cultural-tourism-info-extraction-with-agentcore/)
+> 原文用 AgentCore Runtime + Strands 多 agent + SCOPE 提示进化做文旅信息抽取；本项目改用**单 AgentCore Harness + Memory** 承载、场景换成**工业技术文档抽取**，聚焦复现其"记忆自学习"效果。
+
 在 **单个 AgentCore Harness + Memory** 上复现"agent 靠长期记忆越跑越好"，场景为**工业技术文档抽取**（低温液氮储罐技术要求 → `设备主体/设备部件/指标名称/指标特征/原文`）。三种记忆模式可对比：`无记忆(none) / Episodic(内置策略) / 自定义双策略(custom, SCOPE)`。区域 us-west-2。
 
 > 想看结论与数据：`docs/e2e-test-report-memory-loop.md`。想看设计：`docs/design-memory-loop.md`。**本文件讲清代码在哪、每块逻辑、每个实验怎么做。**
