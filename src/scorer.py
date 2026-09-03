@@ -137,12 +137,18 @@ def score(extracted: list[dict], gt: list[dict], judge_fn) -> dict:
         }
 
     # 分块对齐：每次给全部 extracted + 一小批 gt，避免单次输出过大导致截断/摆烂。
+    # 全局约束（修复 coverage 高估）：
+    #   - 每个 gt_index 至多计一次（matched_gt）；
+    #   - 每个 extracted_index **全局**至多被用一次（used_ext）——防止同一抽取项跨块重复匹配多个 GT；
+    #   - 校验 gt_index 属于当前块、extracted_index 为合法且未用过的整数，否则视为无匹配。
     matched = 0
     field_scores: list[float] = []
     all_alignments: list[dict] = []
     matched_gt: set = set()
+    used_ext: set = set()
     for start in range(0, num_gt, _GT_CHUNK):
-        chunk = [{"gt_index": i, **gt[i]} for i in range(start, min(start + _GT_CHUNK, num_gt))]
+        chunk_ids = set(range(start, min(start + _GT_CHUNK, num_gt)))
+        chunk = [{"gt_index": i, **gt[i]} for i in sorted(chunk_ids)]
         prompt = _build_prompt(extracted, chunk)
         try:
             parsed = _extract_json(judge_fn(prompt))
@@ -151,11 +157,15 @@ def score(extracted: list[dict], gt: list[dict], judge_fn) -> dict:
         for a in parsed.get("alignments", []):
             all_alignments.append(a)
             gi = a.get("gt_index")
-            if a.get("extracted_index") is None or gi in matched_gt:
+            ei = a.get("extracted_index")
+            # 结构校验 + 全局一对一约束
+            if not isinstance(gi, int) or gi not in chunk_ids or gi in matched_gt:
                 continue
+            if not isinstance(ei, int) or not (0 <= ei < num_extracted) or ei in used_ext:
+                continue  # 无匹配 / 越界 / 该抽取项已被其它 GT 用过
             matched += 1
-            if isinstance(gi, int):
-                matched_gt.add(gi)
+            matched_gt.add(gi)
+            used_ext.add(ei)
             for verdict in a.get("field_judgments", {}).values():
                 key = str(verdict).strip().lower()
                 if verdict in _VERDICT_SCORE:

@@ -434,6 +434,26 @@ EPISODIC 策略内部是**三段式流水线**，各有默认提示词 + 输出 
 
 ---
 
+### A.4 AgentCore Memory 策略的三种定制方式（含 self-managed 完全自管）
+> 来源：官方 `memory-custom-strategy.html`、`memory-self-managed-strategies.html`。
+
+| 方式 | 能改什么 | 不能改 | 配置 |
+|---|---|---|---|
+| ① 内置策略 | 直接用 | — | CreateMemory 选 SEMANTIC/SUMMARIZATION/USER_PREFERENCE/EPISODIC |
+| ② 内置 + 覆盖 | 各可覆盖步骤的**指令文本**（`appendToPrompt`，**替换**该步骤指令、须自含基础指令）+ **模型**(`modelId`) | **输出记录 schema 固定**；consolidation 操作名(AddMemory/UpdateMemory)固定 | `customMemoryStrategy.configuration.{semanticOverride/summaryOverride/userPreferenceOverride/episodicOverride}.{extraction/consolidation/reflection}.{appendToPrompt, modelId}` |
+| ③ **self-managed（完全自管）** | **全部**：触发条件、提炼/合并逻辑、**任意模型**、**自定义记录 schema 与 namespace**、写回内容 | —（最灵活） | 见下 |
+
+**各内置策略可覆盖的步骤**：Semantic = Extraction + Consolidation；Summary = Consolidation；User preference = Extraction + Consolidation；**Episodic = Extraction + Consolidation + Reflection**。
+
+**self-managed（完全自管）工作方式**：
+1. **触发条件** `selfManagedConfiguration.triggerConditions`：消息数(`messageBasedTrigger.messageCount`)、token 数(`tokenBasedTrigger`)、空闲超时(`timeBasedTrigger.idleSessionTimeout`)——满足即触发。
+2. AgentCore 把窗口内会话 payload **投递到你的 S3**（`payloadDeliveryBucketName`）并发 **SNS 通知**（`invocationConfiguration.topicArn`）。
+3. 你的 **Lambda/外部管道**收到通知 → 读 S3 payload → **自己用任意模型做提炼/合并**（这里就能沿用 V2 那套"反思→consolidation"逻辑，且产出**你自定义结构的规则**）。
+4. 通过 **`BatchCreateMemoryRecords` / `BatchUpdateMemoryRecords` / `BatchDeleteMemoryRecords`** 把记忆记录**写回** Memory（含自定义 `memoryRecordSchema` 与 `namespace`）。
+5. 需要 **S3 + SNS + IAM 执行角色**（信任 `bedrock-agentcore.amazonaws.com`）。
+
+**取舍**：唯一能**自定义记忆记录结构**的方式（内置/覆盖都不行）；代价是要搭 S3+SNS+Lambda 管道、异步、运维更重。适合"要 AgentCore 托管触发/存储、但提炼逻辑与记录 schema 完全自定"的场景。
+
 ## 引用与参考
 
 **原始工作 / 直接复现对象**

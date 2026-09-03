@@ -120,3 +120,21 @@ def test_english_verdicts():
     assert result["coverage"] == 0.5
     # [1, 0.5, 0] / 3 = 0.5
     assert result["accuracy"] == 0.5
+
+
+def test_global_one_to_one_across_chunks():
+    """修复验证：同一 extracted_index 跨 GT 分块只能匹配一次（防覆盖率高估）。"""
+    from src import scorer
+    gt = [{"主体": f"m{i}", "部件": "p", "特征值": "v", "原文": "o"} for i in range(25)]  # 2 块(20+5)
+    extracted = [{"设备主体": "m", "设备部件": "p", "指标名称": "n", "指标特征": "v", "原文": "o"}]
+
+    def fake_judge(prompt):
+        # 每一块都把"本块首个 GT"匹配到同一个 extracted_index=0
+        import re as _re
+        gi = int(_re.search(r'"index":\s*(\d+)', prompt).group(1))  # 本块第一个 gt 的 index
+        return json.dumps({"alignments": [{"gt_index": gi, "extracted_index": 0,
+                                           "field_judgments": {"主体": "正确"}}]})
+
+    res = scorer.score(extracted, gt, fake_judge)
+    # 两块各想用 ext0 → 全局只算一次 → matched=1, coverage=1/25
+    assert res["coverage"] == 1 / 25, res["coverage"]
