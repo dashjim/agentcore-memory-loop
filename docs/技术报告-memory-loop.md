@@ -22,15 +22,15 @@
 理解本报告需要的核心概念，按"设计里怎么用到"来解释：
 
 - **AgentCore Runtime vs Harness**：Runtime = 你把 agent 代码打包成容器托管；**Harness = 配置驱动的托管 agent**——只声明 `model / tools / skills / memory / systemPrompt` 即可运行，无需写容器。本项目用 **Harness**（博客用 Runtime，这是主要差异）。
-- **Harness Skill**：挂在 harness 上的一份 **SOP 文档（`SKILL.md`，编号步骤）**，agent 在自己的推理循环里**按这套步骤执行**。本项目把"回忆→抽取→自审→修订→沉淀"的**反思编排写成 Skill**（见 §3.2），而不是用外部代码编排。
-- **inline_function 工具 + "工具回路"**：harness 声明的函数型工具，**没有服务端实现**；agent 调用它时，会把"要调工具"（toolUse）**流式返回给客户端**，由客户端（我们的 `orchestrator`）真正执行、再把结果（toolResult）用**同一会话**回传给 agent 续跑。这一来一回就是**"工具回路"**——custom 模式的 `recall_lessons`/`record_lesson` 就这么工作（见 §2.3）。
-- **AgentCore Memory 的 event / strategy / record / namespace / actorId / sessionId**：见 **§2.2.0**（记忆的两层数据、两条读路径、三个作用域键——这是"记忆隔离"设计的基础）。
-- **Episodic 记忆（情节记忆）**：AgentCore Memory 的一种策略——把一次交互当作一个"情节"，自动提炼 `situation/intent/assessment/reflection` 存下，下次同类任务自动注入上下文。本项目 **episodic 模式的自学习就靠它**（详见 §2.2.0 与 §6.4）。
+- **Harness Skill**：挂在 harness 上的一份 **SOP 文档（`SKILL.md`，编号步骤）**，agent 在自己的推理循环里**按这套步骤执行**。本项目把"回忆→抽取→自审→修订→沉淀"的**反思编排写成 Skill**（见 [§3.2](#s3-2)），而不是用外部代码编排。
+- **inline_function 工具 + "工具回路"**：harness 声明的函数型工具，**没有服务端实现**；agent 调用它时，会把"要调工具"（toolUse）**流式返回给客户端**，由客户端（我们的 `orchestrator`）真正执行、再把结果（toolResult）用**同一会话**回传给 agent 续跑。这一来一回就是**"工具回路"**——custom 模式的 `recall_lessons`/`record_lesson` 就这么工作（见 [§2.3](#s2-3)）。
+- **AgentCore Memory 的 event / strategy / record / namespace / actorId / sessionId**：见 **[§2.2.0](#s2-2-0)**（记忆的两层数据、两条读路径、三个作用域键——这是"记忆隔离"设计的基础）。
+- **Episodic 记忆（情节记忆）**：AgentCore Memory 的一种策略——把**一个 session（会话，含其中所有 turn）**当作一个"情节"（按 `sessionId` 归档，非 turn 级），自动提炼 `situation/intent/assessment/reflection` 存下，下次同类任务自动注入上下文。本项目 **episodic 模式的自学习就靠它**（详见 [§2.2.0](#s2-2-0) 与 [§6.4](#s6-4)）。
 - **SCOPE**：博客提出的机制——agent **从执行轨迹里学习、把经验进化成提示**，区分**战略记忆（跨任务通用）**与**战术记忆（当前任务即时）**。本项目 custom 模式复现之。
 - **ReAct**：`Thought→Action→Observation` 的推理-行动循环，是本项目"抽取→自审→修订"反思循环的思想基础。
 - **Ground Truth（GT）**：既有的标准抽取结果（`csv/flattened_data_restructured_*.csv`），**只用于评分**，绝不进入 agent 上下文。
-- **LLM-as-judge**：用一个"裁判 LLM"给抽取结果打分（把抽取项与 GT 语义对齐、逐字段判对错），见 §4。
-- **覆盖率 / 准确率**：覆盖率=对齐上的 GT 条目/GT 总数；准确率=匹配条目的字段级正确率。定义见 §4。
+- **LLM-as-judge**：用一个"裁判 LLM"给抽取结果打分（把抽取项与 GT 语义对齐、逐字段判对错），见 [§4](#s4)。
+- **覆盖率 / 准确率**：覆盖率=对齐上的 GT 条目/GT 总数；准确率=匹配条目的字段级正确率。定义见 [§4](#s4)。
 - **`__META__`**：agent 在最终 JSON 之后另起一行输出的 `{"revision_count": N}`，供外层采集"本次自审-修订循环发生了几次"。
 
 ---
@@ -65,6 +65,7 @@ runs.db(SQLite) ─► FastAPI(127.0.0.1:8600) ─► 单页 A/B/C 面板；/api
 
 ### 2.2 记忆隔离设计（核心）
 
+<a id="s2-2-0"></a>
 #### 2.2.0 先厘清 AgentCore Memory 的几个原语（否则下面看不懂）
 AgentCore Memory 有**两层数据**和**两条读路径**：
 
@@ -73,18 +74,19 @@ AgentCore Memory 有**两层数据**和**两条读路径**：
 - **记忆记录 memory record（提炼层）**：策略产出的结构化条目。用 **`retrieve_memory_records`** 读——**语义检索**（给 query + topK，返回最相关的记录），是"按意思找"，不是"逐字取"。
 
 **本项目用到的两种策略**：
-- **SEMANTIC**：从事件里抽取零散"事实/知识点"，适合语义问答。本项目给 customMem 挂了它（但 custom 模式其实**没依赖它的提炼**，只把 customMem 当事件存储用，见 §2.2.1）。
-- **EPISODIC（＝"情节记忆"，本项目 episodic 模式的核心）**：把**一次完整交互当作一个"情节 episode"**，自动提炼成结构化反思——`situation(发生了什么)` / `intent(目标)` / `assessment(是否达成：Yes/Partially/No)` / `reflection(教训)`，写入 `/episodes/{actorId}` namespace。下次同类任务时，这些情节被**自动注入**上下文，让 agent"记得上次是怎么做的、错在哪、要覆盖哪些类别"。这就是 episodic 模式"越跑越好"的来源——§6.4 展示了真机提炼出的 5 条情节原文。它与 custom 的"显式规则列表"互补：**episodic=经验情节（隐式、AgentCore 自动提炼与注入）** vs **custom=提炼规则（显式、我们自管存取）**。
+- **SEMANTIC**：从事件里抽取零散"事实/知识点"，适合语义问答。本项目给 customMem 挂了它（但 custom 模式其实**没依赖它的提炼**，只把 customMem 当事件存储用，见 [§2.2.1](#s2-2-1)）。
+- **EPISODIC（＝"情节记忆"，本项目 episodic 模式的核心）**：把**一个 session（会话，含其中所有 turn）当作一个"情节 episode"**——即以 `sessionId` 为粒度（namespace 模板 `/episodes/{actorId}/{sessionId}`，非 turn 级），把该 session 内多轮消息/工具调用**整体**提炼成一条结构化反思——`situation(发生了什么)` / `intent(目标)` / `assessment(是否达成：Yes/Partially/No)` / `reflection(教训)`，写入 `/episodes/{actorId}` namespace。下次同类任务时，这些情节被**自动注入**上下文，让 agent"记得上次是怎么做的、错在哪、要覆盖哪些类别"。这就是 episodic 模式"越跑越好"的来源——[§6.4](#s6-4) 展示了真机提炼出的 5 条情节原文。它与 custom 的"显式规则列表"互补：**episodic=经验情节（隐式、AgentCore 自动提炼与注入）** vs **custom=提炼规则（显式、我们自管存取）**。
 
 一句话：**`create_event`/`list_events` 操作原始事件（精确、即时）；`retrieve_memory_records` 操作策略提炼出的记录（语义、异步生成）**。两者读的是不同层的东西。
 
 **三个作用域键（记忆隔离就是靠它们，是本设计的核心）**：
 - **`actorId`（谁的记忆）**：实体/用户标识。所有事件、记录都挂在某个 actor 下，天然隔离不同实体。本项目固定 `memory-loop`。
-- **`sessionId`（哪个分区/哪次会话）**：事件按 `actorId + sessionId` 归档；`list_events` **必须**同时给 `actorId` 和 `sessionId` 才能取（不能只按 actor 列全部）。→ **本项目正是用 `sessionId` 作为"记忆分区"的隔离键**：战略记忆放一个固定 session、每份文档的战术记忆放各自的 session（见 §2.2.1）。
-- **`namespace`（提炼记录的归类路径）**：**属于"提炼层"**——策略把提炼出的记忆记录按一个**路径模板**归类，如 SEMANTIC 用 `/users/{actorId}/facts`、EPISODIC 用 `/episodes/{actorId}`（`{actorId}` 会被实际值替换）。`retrieve_memory_records` 就是"在某个 namespace 下按语义 query 检索记录"。namespace 由**策略**决定，我们改不了；所以 custom 模式**不靠 namespace 做隔离**（改用 sessionId），episodic 模式则由策略自动用 namespace（§6.4 我们就是从 `/episodes/memory-loop` 这个 namespace 读出情节的）。
+- **`sessionId`（哪个分区/哪次会话）**：事件按 `actorId + sessionId` 归档；`list_events` **必须**同时给 `actorId` 和 `sessionId` 才能取（不能只按 actor 列全部）。→ **本项目正是用 `sessionId` 作为"记忆分区"的隔离键**：战略记忆放一个固定 session、每份文档的战术记忆放各自的 session（见 [§2.2.1](#s2-2-1)）。
+- **`namespace`（提炼记录的归类路径）**：**属于"提炼层"**——策略把提炼出的记忆记录按一个**路径模板**归类，如 SEMANTIC 用 `/users/{actorId}/facts`、EPISODIC 用 `/episodes/{actorId}`（`{actorId}` 会被实际值替换）。`retrieve_memory_records` 就是"在某个 namespace 下按语义 query 检索记录"。namespace 由**策略**决定，我们改不了；所以 custom 模式**不靠 namespace 做隔离**（改用 sessionId），episodic 模式则由策略自动用 namespace（[§6.4](#s6-4) 我们就是从 `/episodes/memory-loop` 这个 namespace 读出情节的）。
 
 > 小结：**actorId=谁、sessionId=哪个分区（我们用它做隔离）、namespace=策略给提炼记录归类的路径（提炼层专用）**。三者层层缩小作用域。
 
+<a id="s2-2-1"></a>
 #### 2.2.1 我们的选择：自定义记忆用"事件层"，不用"提炼层"
 **为什么 custom 模式不用 `retrieve_memory_records`**：
 1. **异步延迟**——策略提炼是后台异步的，`record_lesson` 刚写完的经验，`retrieve_memory_records` 当下读不到（提炼还没跑），破坏"本轮写、下轮立刻用"的确定性；
@@ -92,7 +94,7 @@ AgentCore Memory 有**两层数据**和**两条读路径**：
 3. **我们的"经验"本就是已提炼好的短规则**，不需要再被语义抽取一遍，只要**逐字存、逐字取**。
 
 因此 custom 模式改用**事件层**：`create_event` 写规则、`list_events` 读规则（精确、即时、可控分区）。
-> 注：`retrieve_memory_records` 并非没用——**episodic 模式正是依赖策略提炼**，其自动注入靠的就是 EPISODIC 策略产出的记录；§6.4 里我们也正是用 `retrieve_memory_records` 去**读出 episodic 记住的 5 条情节**。即：**custom=事件层（我们自管），episodic=提炼层（AgentCore 托管）**，两种模式刻意用了两条不同路径。
+> 注：`retrieve_memory_records` 并非没用——**episodic 模式正是依赖策略提炼**，其自动注入靠的就是 EPISODIC 策略产出的记录；[§6.4](#s6-4) 里我们也正是用 `retrieve_memory_records` 去**读出 episodic 记住的 5 条情节**。即：**custom=事件层（我们自管），episodic=提炼层（AgentCore 托管）**，两种模式刻意用了两条不同路径。
 
 **分区（隔离）方案** —— 用 **sessionId 承载记忆分区**，与 harness 的 `runtimeSessionId` 完全解耦：
 
@@ -114,6 +116,7 @@ AgentCore Memory 有**两层数据**和**两条读路径**：
 
 > 该方案是**真机实测后定的**：`list_events(sessionId)` 立即返回逐字 payload；`create_event` 必带 `eventTimestamp`；SEMANTIC 异步检索不适合"即时精确召回"。
 
+<a id="s2-3"></a>
 ### 2.3 三种模式的承载与记忆绑定
 
 `InvokeHarness` **无 memoryId 入参**——记忆绑定是**资源侧**的，故用两个 harness：
@@ -146,6 +149,7 @@ AgentCore Memory 有**两层数据**和**两条读路径**：
 配备 scope-extract 技能与 recall_lessons/record_lesson 工具；严格按技能步骤：回忆→抽取→自审修订→沉淀经验。你看不到标准答案。
 ```
 
+<a id="s3-2"></a>
 ### 3.2 scope-extract Skill（custom 模式，SCOPE 反思循环，全文）
 ```markdown
 ---
@@ -178,6 +182,7 @@ name: scope-extract-native
 
 ---
 
+<a id="s4"></a>
 ## 4. 评分方法（LLM-as-judge）
 
 **为何 judge 复用 harness**：本环境的会话角色（EC2 SSM Role）**无 Bedrock 直连权限**（`converse` 报 API Key 错），而 harness 执行角色有。故 judge = 一次 `invoke_harness`，override 评审系统提示、清空 skills/tools、`temperature=0`、`maxTokens=8192`。
@@ -190,9 +195,10 @@ name: scope-extract-native
 
 ---
 
+<a id="s5"></a>
 ## 5. 实验设计
 
-**公共设置**：脚本 `scripts/run_experiments.py`。目标文档 = 13 页"150方液氮罐技术要求"（GT 123 条）；B 文档 = 小文档"2477080009简图"（GT 6 条）。抽取与裁判模型均为 `claude-sonnet-4-6`。**运行前 `clear_memory_for_mode("custom")` 清空自定义记忆**，保证从零开始（episodic 记忆由 AgentCore 托管、按 `actorId` 累积，无法逐条清空，是一处局限，见 §9）。
+**公共设置**：脚本 `scripts/run_experiments.py`。目标文档 = 13 页"150方液氮罐技术要求"（GT 123 条）；B 文档 = 小文档"2477080009简图"（GT 6 条）。抽取与裁判模型均为 `claude-sonnet-4-6`。**运行前 `clear_memory_for_mode("custom")` 清空自定义记忆**，保证从零开始（episodic 记忆由 AgentCore 托管、按 `actorId` 累积，无法逐条清空，是一处局限，见 [§9](#s9)）。
 
 **每一次"运行"的统一流程**（三个实验里的每次运行都走这条）：
 ```
@@ -210,29 +216,30 @@ name: scope-extract-native
 - **输入**：固定的目标 13 页文档 × 三模式；`none×2`、`episodic×4`、`custom×4`，**同模式内串行**执行。
 - **过程**：先清空 custom 记忆 → 依次跑 `none#1,#2`（warm=False）→ `episodic#1..4`（#1 warm=False，其后 warm=True）→ `custom#1..4`（同）。**"串行"是关键**：episodic/custom 每轮把经验写回记忆，下一轮开工前自动注入(episodic)或主动 `recall_lessons`(custom)，形成"跑一次→学一点→下次更好"的闭环；warm 标记该轮是否已有先验记忆。
 - **输出 / 度量**：每次运行的 覆盖率、准确率、反思轮数、抽取条数、token。
-- **预期与判读**：把每模式覆盖率按"第 N 次运行"连成折线（UI 实验A面板）；带记忆模式应见**上升趋势**、none 持平。→ 结果见 **§6.1**。
+- **预期与判读**：把每模式覆盖率按"第 N 次运行"连成折线（UI 实验A面板）；带记忆模式应见**上升趋势**、none 持平。→ 结果见 **[§6.1](#s6-1)**。
 
 ### 实验 B · 战略记忆迁移
 - **假设**：实验A 里积累的**战略记忆（跨文档通用规则）能迁移到一份没见过的新文档**，使带记忆模式的首轮就优于无记忆。
 - **输入**：一份**新文档**（B 文档，A 阶段未跑过）× 三模式各一次；`custom` 用 `warm=True`（复用 A 积累的 M_strat），`none/episodic` 为首见。
 - **过程**：紧接实验A 之后（此时 M_strat 已增补到 15 条）在 B 文档上跑 `none / episodic / custom` 各一次。
 - **输出 / 度量**：三模式在 B 文档上的**首轮** 覆盖率、准确率、token。
-- **预期与判读**：分组柱图对比（UI 实验B面板）；带经验（尤其 custom warm）应不差于 none。→ 结果见 **§6.2**（注：本次 B 文档 GT 仅 6 条，区分度不足，是设计缺陷）。
+- **预期与判读**：分组柱图对比（UI 实验B面板）；带经验（尤其 custom warm）应不差于 none。→ 结果见 **[§6.2](#s6-2)**（注：本次 B 文档 GT 仅 6 条，区分度不足，是设计缺陷）。
 
 ### 实验 C · 记忆可观测
 - **假设**：agent 的"自学习"是**可检视**的——能读出它到底记住 / 进化出了什么内容。
 - **输入**：无需额外运行；对象是实验A/B 跑完后 AgentCore Memory 里沉淀的内容。
 - **过程**：直接读记忆——custom 用 `list_events` 读 `strat`/`tact` 两个分区的规则；episodic 用 `retrieve_memory_records` 读 `/episodes/{actorId}` 的情节记录。
 - **输出 / 度量**：M_strat / M_tact 的规则条目与版本演进；episodic 的情节反思条目（situation/intent/assessment/reflection）。
-- **预期与判读**：应看到 custom 规则**跨运行逐步增补/进化**、episodic 情节记录累积。→ 结果见 **§6.3（custom）/ §6.4（episodic）**。
+- **预期与判读**：应看到 custom 规则**跨运行逐步增补/进化**、episodic 情节记录累积。→ 结果见 **[§6.3](#s6-3)（custom）/ [§6.4](#s6-4)（episodic）**。
 
 ---
 
 ## 6. 实验结果（完整数据，取自 runs.db）
 
-> 严格对应 §5 的**实验 A / B / C**。（脚本 `run_experiments.py` 内部把同文档重跑那批叫 "Phase A"、新文档那批叫 "Phase B"，即此处的实验A、实验B；实验C 无需额外运行，直接读记忆。）
-> **记忆的完整导出**（M_strat 全文 + episodic 全部 15 条情节）见附件 [`docs/memory-dump.md`](memory-dump.md) / [`memory-dump.json`](memory-dump.json)（由 `scripts/dump_memory.py` 真机导出；§6.3/6.4 仅摘录）。
+> 严格对应 [§5](#s5) 的**实验 A / B / C**。（脚本 `run_experiments.py` 内部把同文档重跑那批叫 "Phase A"、新文档那批叫 "Phase B"，即此处的实验A、实验B；实验C 无需额外运行，直接读记忆。）
+> **记忆的完整导出**（M_strat 全文 + episodic 全部 15 条情节）见附件 [`docs/memory-dump.md`](memory-dump.md) / [`memory-dump.json`](memory-dump.json)（由 `scripts/dump_memory.py` 真机导出；[§6.3](#s6-3)/6.4 仅摘录）。
 
+<a id="s6-1"></a>
 ### 6.1 实验 A · 记忆生效（越跑越好）—— 同一 13 页文档（GT=123）逐次重跑
 
 | 序 | 模式 | warm | 反思轮 | 覆盖率 | 准确率 | 抽取条数 | 总 token |
@@ -254,6 +261,7 @@ name: scope-extract-native
 - **custom**：覆盖率 0.73~0.78 无明显上升，抽取条数偏少（80~95<123，欠抽），准确率高(~0.87)；反思轮数多为 None（工具回路里 __META__ 未稳定输出）。**token 极贵（20 万~96 万/次）——原因如下**：
   > custom 每调一次 `recall/record` 工具，因 inline_function 无服务端实现，agent 会把控制权交回客户端，我们执行后**用同一会话重新 `invoke_harness`**——而**每一次重调都要把"系统提示 + Skill + 整份 13 页文档 + 之前所有轮次对话"作为输入 token 再发一遍**。custom#3 做了 6 个来回（`client_invoke_loops=6`）+ 冗长自审文本，于是**单次抽取累计 959,072 token**（≈15 万输入 × 6 轮）。对比 episodic 单次 invoke、~2.8 万 token——**贵在"同一份大文档被反复整体重发"**，这是客户端工具回路 + 长文档的固有代价。
 
+<a id="s6-2"></a>
 ### 6.2 实验 B · 战略记忆迁移 —— 新文档（GT=6）三模式首轮
 | 模式 | 覆盖率 | 准确率 | token |
 |---|---|---|---|
@@ -262,8 +270,9 @@ name: scope-extract-native
 | custom | 0.667 | 0.688 | 11,260 |
 覆盖率均 0.667（4/6），GT 太小不足以区分模式；准确率上 none/custom 略优于 episodic（首见新文档、无先验）。
 
+<a id="s6-3"></a>
 ### 6.3 实验 C · 记忆可观测（一）：custom 的战略/战术记忆
-> 实验C 不需额外运行，直接读 AgentCore Memory 里 custom 与 episodic 两种模式各自沉淀的内容。本小节看 custom（自管的显式规则），§6.4 看 episodic（AgentCore 自动提炼的情节）。
+> 实验C 不需额外运行，直接读 AgentCore Memory 里 custom 与 episodic 两种模式各自沉淀的内容。本小节看 custom（自管的显式规则），[§6.4](#s6-4) 看 episodic（AgentCore 自动提炼的情节）。
 
 custom 模式跨 4 次运行，`record_lesson("strat", …)` 沉淀出 **3 个版本、规则从 7 条增补到 15 条**的抽取指南（`/strategy/memory-loop` 分区，`list_events` 读出）：
 
@@ -278,6 +287,7 @@ custom 模式跨 4 次运行，`record_lesson("strat", …)` 沉淀出 **3 个�
 
 **战略 vs 战术两种记忆（对应博客）**：本设计的自定义双策略实现了博客提出的两类记忆——**战略记忆 M_strat**（`/strategy/{actorId}`，跨文档通用，即上述 3 条规则）与**战术记忆 M_tact**（`/tactic/{actorId}/{md5(doc)}`，仅当前文档）。实测本轮 **M_strat=3 条（自进化到 15 条规则），M_tact=0 条**——agent 判定其学到的经验多为跨文档可复用，故全部沉淀为战略记忆；战术分区为空。这说明模型在本任务上倾向于抽象出通用规则，而非文档专属技巧。
 
+<a id="s6-4"></a>
 ### 6.4 实验 C · 记忆可观测（二）：episodic 的情节记忆（真机读取 `episodicMem`）
 episodic 模式下，AgentCore 的 EPISODIC 策略从每次运行的轨迹**自动提炼出"情节记录"**（`/episodes/memory-loop` 分区，共 15 条，`retrieve_memory_records` 读出）。
 
@@ -312,6 +322,7 @@ episodic 模式下，AgentCore 的 EPISODIC 策略从每次运行的轨迹**自�
 
 **一句话**：核心思想（**两级记忆 + 从执行轨迹自学习/进化**）复现成功，并有真机记忆内容佐证（M_strat 规则 7→15 条、episodic 5 条情节反思）；但"记忆效果"在本工业抽取场景主要体现在**覆盖率与抽取完整度**（而非博客的反思轮数递减），且准确率未达博客对其文旅场景宣称的 ≥95% 目标——属场景/数据/模型差异，如实呈现。
 
+<a id="s8"></a>
 ## 8. 工程陷阱与修复（过程留痕）
 
 | 现象 | 根因 | 修复 | 佐证 |
@@ -325,6 +336,7 @@ episodic 模式下，AgentCore 的 EPISODIC 策略从每次运行的轨迹**自�
 
 ---
 
+<a id="s9"></a>
 ## 9. 结论与局限
 
 **结论**：在工业技术文档抽取场景，**Episodic（AgentCore 原生记忆）给出最清晰的记忆自学习增益**（覆盖率↑、抽取完整度↑、准确率高、成本低）；**自定义 SCOPE 的价值在于可观测、可复用的自进化规则库**（战略记忆 7→15 条），但客户端工具回路成本高、本轮未转化为覆盖率提升。与博客"反思轮数递减"不同，本场景效果体现在覆盖率/完整度与成本。
@@ -335,7 +347,7 @@ episodic 模式下，AgentCore 的 EPISODIC 策略从每次运行的轨迹**自�
 - Phase B 的 GT 过小（6 条），迁移实验区分度不足，宜换更大的新文档。
 - 未做：WebUI Cognito 认证 + CloudFront 部署、ALP portal 包、θ_base 的 Optimization 慢环。
 
-**复现**：见 [README](../README.md) §5；数据在 `runs.db`（未随仓库上传），截图见 `docs/e2e_expA_coverage.png`、`e2e_expB_modes.png`。
+**复现**：见 [README](../README.md) [§5](#s5)；数据在 `runs.db`（未随仓库上传），截图见 `docs/e2e_expA_coverage.png`、`e2e_expB_modes.png`。
 
 ---
 
@@ -350,7 +362,7 @@ episodic 记忆记录除语义 `content` 外，带一组结构化 `metadata`，�
 | `x-amz-agentcore-memory-recordType` | `BASE` | 记录类型 |
 | `x-amz-agentcore-memory-createdAt` / `updatedAt` | 时间戳 | 按时间过滤/排序 |
 
-（本项目 15 条情节中既有 `SUCCESS` 也有 `FAILURE`，见 §6.4；`FAILURE` 多为"会话不完整/未产出"的情节。）
+（本项目 15 条情节中既有 `SUCCESS` 也有 `FAILURE`，见 [§6.4](#s6-4)；`FAILURE` 多为"会话不完整/未产出"的情节。）
 
 ### A.2 EPISODIC 策略配置与提炼时机（`get_memory` 实读）
 ```
@@ -358,7 +370,7 @@ strategyId: episodicMem_Episodic-DhAbjWHA6w   type: EPISODIC   status: ACTIVE
 namespaces（episode 存储）:            /episodes/{actorId}/{sessionId}
 reflection.namespaces（反思汇总）:      /episodes/{actorId}
 ```
-- **提炼时机**：**异步**——每次运行（一个 session）结束后，EPISODIC 策略在后台从该 session 的事件轨迹提炼出一条"情节 + 反思"，并**自动判定 assessment（SUCCESS/FAILURE）**。因此是"跑完过一会儿才出现"，不是即时（这也是 custom 模式选择 `list_events` 即时读、而非依赖策略提炼的原因，见 §2.2.1）。
+- **提炼时机**：**异步**——每次运行（一个 session）结束后，EPISODIC 策略在后台从该 session 的事件轨迹提炼出一条"情节 + 反思"，并**自动判定 assessment（SUCCESS/FAILURE）**。因此是"跑完过一会儿才出现"，不是即时（这也是 custom 模式选择 `list_events` 即时读、而非依赖策略提炼的原因，见 [§2.2.1](#s2-2-1)）。
 - **命名空间**：episode 按 `actorId + sessionId` 归档、reflection 汇总到 `actorId` 级——与下文博客的默认模式一致。
 
 ### A.3 记忆隔离 vs 共享的 namespace 设计模式
@@ -402,7 +414,7 @@ reflection.namespaces（反思汇总）:      /episodes/{actorId}
    https://www.npmjs.com/package/@aws/agentcore
 7. Strands Agents SDK（Harness 内部 agent 框架）：
    https://strandsagents.com/
-8. json-repair（parser 兜底救回非法 JSON，见 §8）：
+8. json-repair（parser 兜底救回非法 JSON，见 [§8](#s8)）：
    https://pypi.org/project/json-repair/
 
 **方法学（概念来源，详见原博客参考文献）**
