@@ -502,11 +502,17 @@ def run_extraction(doc_name, memory_mode, warm=False, deps=None) -> dict:
     elapsed = time.monotonic() - t0
     passed = _passes_gate(extracted)
 
-    # 评分（scorer 缺失/异常不阻断落盘）
+    # 评分（scorer 缺失/异常不阻断落盘）；judge token 单列
     coverage = accuracy = None
+    judge_usage = {"inputTokens": 0, "outputTokens": 0, "totalTokens": 0}
     if deps.scorer is not None:
+        def _judge(prompt):
+            jt, ju = _invoke_llm(deps, _JUDGE_SYSTEM, prompt, max_tokens=8192)
+            for k in judge_usage:
+                judge_usage[k] += ju.get(k, 0)
+            return jt
         try:
-            result = deps.scorer.score(extracted, gt, deps.judge_fn)
+            result = deps.scorer.score(extracted, gt, _judge)
             if isinstance(result, dict):
                 coverage = result.get("coverage")
                 accuracy = result.get("accuracy")
@@ -533,8 +539,10 @@ def run_extraction(doc_name, memory_mode, warm=False, deps=None) -> dict:
         "notes": json.dumps({
             "session_id": session_id,
             "memory_id": memory_id,
+            "actor_id": config.ACTOR_ID,
             "client_invoke_loops": loops,
             "gate_retry": gate_retry,
+            "judge_total_tokens": judge_usage["totalTokens"],
         }, ensure_ascii=False),
     }
     deps.runstore.insert_run(run, path=deps.db_path)
@@ -654,7 +662,10 @@ def run_ablation(doc_name, use_memory, deps=None, db_path=None) -> dict:
     text, u = _invoke_llm(deps, _v2_extract_system(deps, canonical), doc_text, max_tokens=32768)
     _acc(u)
     extracted, revision_count = _parse_final(text)
-    if not _passes_gate(extracted):  # 兜底补一次
+    first_pass = _passes_gate(extracted)   # 首次模型输出是否合规(与门禁后区分)
+    gate_retry = False
+    if not first_pass:  # 兜底补一次
+        gate_retry = True
         text2, u2 = _invoke_llm(deps, _v2_extract_system(deps, canonical),
                                 doc_text + "\n\n请只输出合法 JSON 数组 + __META__ 行。", max_tokens=32768)
         _acc(u2)
@@ -664,10 +675,17 @@ def run_ablation(doc_name, use_memory, deps=None, db_path=None) -> dict:
     elapsed = time.monotonic() - t0
     passed = _passes_gate(extracted)
 
+    # 评分：单列 judge token（review 要求：extraction-path 与 judge 成本分开计）
     coverage = accuracy = None
+    judge_usage = {"inputTokens": 0, "outputTokens": 0, "totalTokens": 0}
     if deps.scorer is not None:
+        def _judge(prompt):
+            jt, ju = _invoke_llm(deps, _JUDGE_SYSTEM, prompt, max_tokens=8192)
+            for k in judge_usage:
+                judge_usage[k] += ju.get(k, 0)
+            return jt
         try:
-            res = deps.scorer.score(extracted, gt, deps.judge_fn)
+            res = deps.scorer.score(extracted, gt, _judge)
             coverage, accuracy = res.get("coverage"), res.get("accuracy")
         except Exception:
             pass
@@ -696,7 +714,11 @@ def run_ablation(doc_name, use_memory, deps=None, db_path=None) -> dict:
         "num_extracted": len(extracted), "num_gt": len(gt) if isinstance(gt, list) else 0,
         "extracted_json": json.dumps(extracted, ensure_ascii=False),
         "notes": json.dumps({"variant": "v2", "canonical_in_len": len(canonical),
-                             "canonical_out_len": len(new_canon)}, ensure_ascii=False),
+                             "canonical_out_len": len(new_canon),
+                             "first_output_pass": bool(first_pass), "gate_retry": gate_retry,
+                             "judge_total_tokens": judge_usage["totalTokens"],
+                             "extraction_path_tokens": usage["totalTokens"]},
+                            ensure_ascii=False),
     }
     deps.runstore.insert_run(run, path=db_path)
     return run
