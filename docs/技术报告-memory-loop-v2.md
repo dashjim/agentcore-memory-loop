@@ -53,6 +53,29 @@ V1 用 `scope-extract` Skill（编号 SOP + record/recall 工具）承载反思�
   → 落库 runs_v2.db
 ```
 
+```mermaid
+flowchart TD
+  S(["开始一次运行<br/>(doc, use_memory)"]) --> R{"use_memory?"}
+  R -- "mem" --> RC["read_canonical<br/>读最新规范规则集"]
+  RC --> INJ["注入 systemPrompt<br/>(抽取schema+红线+内联反思+已积累规则)"]
+  R -- "nomem" --> INJ0["systemPrompt<br/>(抽取schema+红线+内联反思, 无规则注入)"]
+  INJ --> EX
+  INJ0 --> EX["invoke_harness 单次抽取<br/>skills=[] · tools=[] · temp=0 · maxTokens=32768"]
+  EX --> PARSE["解析 JSON 数组 + __META__<br/>(json_repair 兜底)"]
+  PARSE --> GATE{"合规门禁<br/>非空且字段齐?"}
+  GATE -- "否" --> RETRY["补一次 invoke"] --> PARSE
+  GATE -- "是" --> JUDGE["LLM-as-judge (harness承载)<br/>GT分块对齐·瞬时错误重试<br/>→ 覆盖率/准确率"]
+  JUDGE --> MB{"use_memory?"}
+  MB -- "mem" --> REF["反思: 从本轮抽取提炼可复用规则(≤10)"]
+  REF --> CON["consolidation: 与现有规则集合并/去重/≤15条"]
+  CON --> WC["write_canonical 更新规则集"]
+  WC --> DB[("落库 runs_v2.db")]
+  MB -- "nomem" --> DB
+  classDef mem fill:#e8f0fe,stroke:#4285f4;
+  class RC,INJ,REF,CON,WC mem;
+```
+> 蓝色节点为 **mem 模式专属**（记忆的注入与沉淀）；其余步骤两种模式完全相同——这正是"单变量"：唯一差别就是蓝色这几步是否发生。
+
 ### 1.7 评分（LLM-as-judge）
 judge 复用 harness 承载（会话角色无 Bedrock 直连权限）；GT 每 20 条分块对齐、逐字段判 正确/部分/错误；`覆盖率=对齐上的GT数/GT总数`、`准确率=字段级正确率`。对 harness 502/限流等**瞬时错误自动重试**（V2 新增，保障批量评分稳定）。GT 仅用于评分，绝不进 agent 上下文。
 
