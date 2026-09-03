@@ -376,3 +376,38 @@ reflection.namespaces（反思汇总）:      /episodes/{actorId}
   （本项目实测：用父路径 `/episodes/memory-loop` 检索能命中子路径 `/episodes/memory-loop/{hash}` 的记录，即层级匹配行为。）
 - **安全控制（共享务必配 IAM）**：用条件键 `bedrock-agentcore:namespace`（精确）/ `bedrock-agentcore:namespacePath`（层级）限定访问；用 `${aws:PrincipalTag/userId}` 动态限定"用户只能访问自己的数据"，或放开给管理员跨用户访问。
 - **小结**：episodic 记忆**可**多用户共享，但非默认——需 ① 调整命名空间模板把 `{actorId}` 下沉、② 用 `namespacePath` 层级检索、③ 配套 IAM 策略控边界。
+
+---
+
+## 引用与参考
+
+**原始工作 / 直接复现对象**
+1. AWS 博客｜Self-learning evolvable agents for cultural tourism info extraction with AgentCore（本项目复现对象）：
+   https://aws.amazon.com/cn/blogs/china/self-learning-evolvable-agents-for-cultural-tourism-info-extraction-with-agentcore/
+
+**AgentCore Memory 设计**
+2. AWS 博客｜Organizing agents' memory at scale: namespace design patterns in AgentCore Memory（记忆隔离/共享、namespace vs namespacePath、IAM 条件键，见附录 A.3）：
+   https://aws.amazon.com/cn/blogs/machine-learning/organizing-agents-memory-at-scale-namespace-design-patterns-in-agentcore-memory/
+
+**AWS 官方文档**
+3. What is Amazon Bedrock AgentCore：
+   https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/what-is-bedrock-agentcore.html
+4. AgentCore Harness（承载方式，Model A）：
+   https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/harness.html
+5. AgentCore Memory（事件/策略/记录/namespace）：
+   https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/memory.html
+
+**工具与框架**
+6. AgentCore CLI `@aws/agentcore`（npm，本项目部署所用；注意与旧 `bedrock-agentcore-starter-toolkit` 区分）：
+   https://www.npmjs.com/package/@aws/agentcore
+7. Strands Agents SDK（Harness 内部 agent 框架）：
+   https://strandsagents.com/
+8. json-repair（parser 兜底救回非法 JSON，见 §8）：
+   https://pypi.org/project/json-repair/
+
+**方法学（概念来源，详见原博客参考文献）**
+9. ReAct：Reasoning + Acting 的推理-行动循环（Yao et al., 2022）：
+   https://arxiv.org/abs/2210.03629
+10. SCOPE：Self-evolving Context Optimization via Prompt Evolution（战略/战术记忆 + 提示进化）——见上文第 1 篇原博客所引参考文献。
+
+> 说明：SCOPE 的原始论文出处以原博客参考文献为准，本报告未独立核对其 arXiv 编号，故不臆造链接。
