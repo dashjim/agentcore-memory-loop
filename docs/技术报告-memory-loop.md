@@ -3,6 +3,9 @@
 > 复现自 AWS 博客 [Self-learning evolvable agents for cultural tourism info extraction with AgentCore](https://aws.amazon.com/cn/blogs/china/self-learning-evolvable-agents-for-cultural-tourism-info-extraction-with-agentcore/)。
 > 本报告给出**完整的设计细节、提示词/Skill 全文、评分方法与实验全过程数据**。区域 us-west-2，日期 2026-08~09。
 
+> **⚠️ 版本状态（据首读者 review 更新）**：本文是 **V1 工程探索 / 机制观察报告**，**不作为因果结论依据**——V1 的 none/episodic/custom 同时改变了 Harness/Skill/工具回路/记忆机制/召回方式（多变量混杂），且 episodic 未从干净状态启动。**因果性单变量结论见 [V2](技术报告-memory-loop-v2.md)**。
+> 另：本文覆盖率数字是**评分一对一 bug 修复前**的旧值（该 bug 会系统性高估覆盖率），**应视为偏高的暂定值**；修正后的干净数字见 V2。本文保留其"工程观察"价值（事件层记忆即时读写、工具回路成本、EPISODIC 真机行为、官方提示词等）。
+
 ---
 
 ## 摘要
