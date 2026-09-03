@@ -375,11 +375,11 @@ reflection.namespaces（反思汇总）:      /episodes/{actorId}
 
 **关于 EPISODIC 的抽取提示词**：
 - **默认提示词是 AWS 托管的，运行时 API 不返回原文**（`get_memory` 只回 type/namespace/reflection 配置，无 prompt 字段）；但**官方文档公开了逐字默认提示词全文**——见下 §A.2.1（我用 AgentCore Browser 从官方文档页抓取）。
-- **可定制（追加式，非替换）**：通过 **custom strategy 的 `episodicOverride`** 覆盖，字段（来自 `create_memory` schema 实测）：
+- **可定制（⚠️ 更正：`appendToPrompt` 是"替换该步骤指令块"，非追加）**：官方原文 *"The content of appendToPrompt **replaces** the default instructions"*——覆盖时**必须自己把内置基础指令抄进去再改**；且 **built-in-override 的输出 schema 固定不可改**、consolidation 操作名（AddMemory/UpdateMemory）不可改。通过 **custom strategy 的 `episodicOverride`** 覆盖，字段（来自 `create_memory` schema 实测）：
   - `extraction: { appendToPrompt, modelId }`
   - `consolidation: { appendToPrompt, modelId }`
   - `reflection: { appendToPrompt, modelId, namespaces, memoryRecordSchema }`
-  即只能**在托管基础提示词后 `appendToPrompt` 追加**指令、并可换 `modelId`；SEMANTIC/SUMMARY/USER_PREFERENCE 同理（`semanticOverride/summaryOverride/userPreferenceOverride`）。
+  即通过 `appendToPrompt` **替换该步骤的指令块**（需自含基础指令）、并可换 `modelId`；SEMANTIC/SUMMARY/USER_PREFERENCE 同理（`semanticOverride/summaryOverride/userPreferenceOverride`）。**注意：输出记录 schema 固定，built-in-override 改不了；要自定义记录字段结构只能走 self-managed 策略。**
 - **实测反推的"等效抽取 schema"**（托管提示词让模型产出的结构，见 §6.4 原文）：每个 session → `situation / intent / assessment（内容为 Yes/Partially/No，metadata 映射为 SUCCESS/FAILURE）/ justification / reflection`。
 
 ### A.2.1 EPISODIC 官方默认提示词全文（三套，取自官方文档）
@@ -414,7 +414,7 @@ EPISODIC 策略内部是**三段式流水线**，各有默认提示词 + 输出 
 > 输入：Main Episode + Relevant Episodes + Existing Reflection Knowledge；过程：Pattern Identification → Knowledge Synthesis。
 > **每条反思条目**：`Operator(add/update) / ID(update 时) / Title / Applied Use Cases(何时适用) / Concrete Hints(可执行建议)`；含**长度约束**（use_cases+hints 超 300 词则拆成新条目而非无限增长）——这解释了记忆为何会"增补/进化"而非堆积。
 
-**要点**：这三套是**默认托管**提示词；如需定制，用 §A.2 的 `episodicOverride.{extraction/consolidation/reflection}.appendToPrompt`（**追加**到上述默认提示词之后）。
+**要点**：这三套是**默认托管**提示词；如需定制，用 §A.2 的 `episodicOverride.{extraction/consolidation/reflection}.appendToPrompt`——⚠️ 它**替换**该步骤指令（非追加），故须把上述默认全文抄入再改；且输出 schema 固定。
 
 ### A.3 记忆隔离 vs 共享的 namespace 设计模式
 > 参考：AWS 博客 [Organizing agents' memory at scale: namespace design patterns in AgentCore Memory](https://aws.amazon.com/cn/blogs/machine-learning/organizing-agents-memory-at-scale-namespace-design-patterns-in-agentcore-memory/)
