@@ -374,13 +374,47 @@ reflection.namespaces（反思汇总）:      /episodes/{actorId}
 - **命名空间**：episode 按 `actorId + sessionId` 归档、reflection 汇总到 `actorId` 级——与下文博客的默认模式一致。
 
 **关于 EPISODIC 的抽取提示词**：
-- **默认提示词是 AWS 托管的，API 不返回原文**——`get_memory` 只回 type/namespace/reflection 配置，无 prompt 字段；要看逐字默认提示词需查 AWS 官方文档（内置策略 SEMANTIC/SUMMARIZATION/USER_PREFERENCE/EPISODIC 的默认提取提示在文档中有说明）。
+- **默认提示词是 AWS 托管的，运行时 API 不返回原文**（`get_memory` 只回 type/namespace/reflection 配置，无 prompt 字段）；但**官方文档公开了逐字默认提示词全文**——见下 §A.2.1（我用 AgentCore Browser 从官方文档页抓取）。
 - **可定制（追加式，非替换）**：通过 **custom strategy 的 `episodicOverride`** 覆盖，字段（来自 `create_memory` schema 实测）：
   - `extraction: { appendToPrompt, modelId }`
   - `consolidation: { appendToPrompt, modelId }`
   - `reflection: { appendToPrompt, modelId, namespaces, memoryRecordSchema }`
   即只能**在托管基础提示词后 `appendToPrompt` 追加**指令、并可换 `modelId`；SEMANTIC/SUMMARY/USER_PREFERENCE 同理（`semanticOverride/summaryOverride/userPreferenceOverride`）。
 - **实测反推的"等效抽取 schema"**（托管提示词让模型产出的结构，见 §6.4 原文）：每个 session → `situation / intent / assessment（内容为 Yes/Partially/No，metadata 映射为 SUCCESS/FAILURE）/ justification / reflection`。
+
+### A.2.1 EPISODIC 官方默认提示词全文（三套，取自官方文档）
+> 来源：AWS 官方文档《System prompts for episodic memory strategy》
+> https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/memory-episodic-prompt.html
+> （运行时 API 不返回，此为官方公开的托管默认提示词；本节用 AgentCore Browser 抓取。）
+
+EPISODIC 策略内部是**三段式流水线**，各有默认提示词 + 输出 schema：
+`① 抽取(extraction, 逐 turn 分析)` → `② 合成(consolidation, 把整个 session 合成一条 episode)` → `③ 反思(reflection, 跨 episode 提炼可复用知识)`。
+对应存储：② 存 `/episodes/{actorId}/{sessionId}`（即 §6.4 我们读到的 15 条记录）；③ 存 `/episodes/{actorId}`（reflection 汇总）。
+
+**① 抽取指令（Episode extraction，节选）**
+> "You are an expert conversation analyst. Your task is to analyze multiple turns of a user's activity — a mix of conversation … and structured JSON events …, focusing on tool usage, input arguments, reasoning processes, and structured behavioral events."
+> 框架：Context Analysis → Assistant/System Analysis(每单元 Context/Intent/Action/Reasoning) → Outcome Assessment；明确要求 **不得输出 PII**；含 `<language_requirement>`（按对话主语言输出，专有名词保持原文）。
+> **输出 schema**（每个"单元"一个 `<summary_turn>`）：`turn_id / situation / intent / action / thought / assessment_assistant(Yes/No+理由) / assessment_user(是否为对话 episode 结束)`。每字段仅 1–2 句。
+
+**② 合成指令（Episode consolidation，输出 schema 全文）** —— 这正是 §6.4 我们看到的记录字段来源：
+```
+<language>主语言</language>
+<summary>
+  <situation>  触发此 episode 的情境/背景 </situation>
+  <intent>     用户主要目标/要解决的问题 </intent>
+  <assessment> [Yes/No] 用户目标是否达成 </assessment>
+  <justification> 基于对话与结构化事件关键节点的判断理由 </justification>
+  <reflection> 综合工具使用/推理/决策/行为模式的关键洞见；有效模式、应避免的模式、对同类 episode 的可执行建议 </reflection>
+</summary>
+```
+（`assessment` 的 Yes/No 即 §6.4 记录里的 Yes/Partially/No，并在 metadata 映射为 `episode-assessment: SUCCESS/FAILURE`。）
+
+**③ 反思指令（Reflection generation，节选）** —— 产出跨 episode 的**可复用知识**（存 reflection namespace）：
+> "You are an expert at extracting actionable insights from agent task execution trajectories to build reusable knowledge for future tasks."
+> 输入：Main Episode + Relevant Episodes + Existing Reflection Knowledge；过程：Pattern Identification → Knowledge Synthesis。
+> **每条反思条目**：`Operator(add/update) / ID(update 时) / Title / Applied Use Cases(何时适用) / Concrete Hints(可执行建议)`；含**长度约束**（use_cases+hints 超 300 词则拆成新条目而非无限增长）——这解释了记忆为何会"增补/进化"而非堆积。
+
+**要点**：这三套是**默认托管**提示词；如需定制，用 §A.2 的 `episodicOverride.{extraction/consolidation/reflection}.appendToPrompt`（**追加**到上述默认提示词之后）。
 
 ### A.3 记忆隔离 vs 共享的 namespace 设计模式
 > 参考：AWS 博客 [Organizing agents' memory at scale: namespace design patterns in AgentCore Memory](https://aws.amazon.com/cn/blogs/machine-learning/organizing-agents-memory-at-scale-namespace-design-patterns-in-agentcore-memory/)
