@@ -373,6 +373,15 @@ reflection.namespaces（反思汇总）:      /episodes/{actorId}
 - **提炼时机**：**异步**——每次运行（一个 session）结束后，EPISODIC 策略在后台从该 session 的事件轨迹提炼出一条"情节 + 反思"，并**自动判定 assessment（SUCCESS/FAILURE）**。因此是"跑完过一会儿才出现"，不是即时（这也是 custom 模式选择 `list_events` 即时读、而非依赖策略提炼的原因，见 [§2.2.1](#s2-2-1)）。
 - **命名空间**：episode 按 `actorId + sessionId` 归档、reflection 汇总到 `actorId` 级——与下文博客的默认模式一致。
 
+**关于 EPISODIC 的抽取提示词**：
+- **默认提示词是 AWS 托管的，API 不返回原文**——`get_memory` 只回 type/namespace/reflection 配置，无 prompt 字段；要看逐字默认提示词需查 AWS 官方文档（内置策略 SEMANTIC/SUMMARIZATION/USER_PREFERENCE/EPISODIC 的默认提取提示在文档中有说明）。
+- **可定制（追加式，非替换）**：通过 **custom strategy 的 `episodicOverride`** 覆盖，字段（来自 `create_memory` schema 实测）：
+  - `extraction: { appendToPrompt, modelId }`
+  - `consolidation: { appendToPrompt, modelId }`
+  - `reflection: { appendToPrompt, modelId, namespaces, memoryRecordSchema }`
+  即只能**在托管基础提示词后 `appendToPrompt` 追加**指令、并可换 `modelId`；SEMANTIC/SUMMARY/USER_PREFERENCE 同理（`semanticOverride/summaryOverride/userPreferenceOverride`）。
+- **实测反推的"等效抽取 schema"**（托管提示词让模型产出的结构，见 §6.4 原文）：每个 session → `situation / intent / assessment（内容为 Yes/Partially/No，metadata 映射为 SUCCESS/FAILURE）/ justification / reflection`。
+
 ### A.3 记忆隔离 vs 共享的 namespace 设计模式
 > 参考：AWS 博客 [Organizing agents' memory at scale: namespace design patterns in AgentCore Memory](https://aws.amazon.com/cn/blogs/machine-learning/organizing-agents-memory-at-scale-namespace-design-patterns-in-agentcore-memory/)
 
