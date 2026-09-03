@@ -5,7 +5,8 @@
 
 在 **单个 AgentCore Harness + Memory** 上复现"agent 靠长期记忆越跑越好"，场景为**工业技术文档抽取**（低温液氮储罐技术要求 → `设备主体/设备部件/指标名称/指标特征/原文`）。三种记忆模式可对比：`无记忆(none) / Episodic(内置策略) / 自定义双策略(custom, SCOPE)`。区域 us-west-2。
 
-> **完整技术报告（含记忆隔离设计、提示词/Skill 全文、评分方法、全部实验数据、记忆里记住的内容、与博客对比）**：[`docs/技术报告-memory-loop.md`](docs/技术报告-memory-loop.md)。
+> **技术报告 V2（最新，推荐）**：[`docs/技术报告-memory-loop-v2.md`](docs/技术报告-memory-loop-v2.md) —— 干净单变量消融（记忆开/关）+ 可 consolidation 的自学习记忆 + Agent 整体设计；成本较 V1 降 10–20 倍。
+> **技术报告 V1（含 AgentCore Memory 原语/namespace/EPISODIC 官方提示词等基础）**：[`docs/技术报告-memory-loop.md`](docs/技术报告-memory-loop.md)。
 > 其他：结论摘要 `docs/e2e-test-report-memory-loop.md`、设计 `docs/design-memory-loop.md`。**本文件讲清代码在哪、每块逻辑、每个实验怎么做。**
 
 ---

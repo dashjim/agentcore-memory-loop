@@ -96,8 +96,7 @@ def _build_harness_judge(deps):
             "maxIterations": 2,
             "timeoutSeconds": 300,
         }
-        resp = deps.invoke_harness(**kwargs)
-        return _consume_stream(resp["stream"])["text"]
+        return _stream_consume_retry(deps, kwargs)["text"]
     return judge_fn
 
 
@@ -143,6 +142,27 @@ def _resolve_deps(deps):
 def _new_session_id():
     """runtimeSessionId 必须 ≥33 字符——用两个 uuid4().hex 拼接后截断到 40。"""
     return (uuid4().hex + uuid4().hex)[:40]
+
+
+_TRANSIENT = ("502", "500", "503", "runtimeclienterror", "throttl",
+              "serviceunavailable", "service unavailable", "timed out", "timeout")
+
+
+def _stream_consume_retry(deps, kwargs, retries=4, base_sleep=3):
+    """invoke_harness + 消费流，对瞬时错误（502/5xx/限流）重试；MaxTokens 类不重试（上抛）。"""
+    last = None
+    for i in range(retries):
+        try:
+            return _consume_stream(deps.invoke_harness(**kwargs)["stream"])
+        except Exception as e:
+            s = str(e).lower()
+            if "maximum token" in s or "maxtokens" in s:
+                raise
+            last = e
+            if not any(t in s for t in _TRANSIENT) or i == retries - 1:
+                raise
+            time.sleep(base_sleep * (i + 1))
+    raise last
 
 
 def _memory_id_for_mode(mode, deployed):
@@ -553,3 +573,130 @@ def read_lessons(scope, deps=None, doc_name=None) -> list:
         return []  # tact 需指定文档
     return memory_tools.read_all_lessons(
         scope, memory_id, config.ACTOR_ID, doc_name=doc_name, client=deps.memory_client)
+
+
+# =========================================================================== #
+# V2：单变量消融（同一 harness/抽取提示/单次 invoke；唯一变量=是否注入并沉淀记忆）
+# 记忆改为 canonical 规则集 + consolidation（合并/去重/控体量，借 SEMANTIC 两步范式）
+# =========================================================================== #
+_REFLECT_SYS = (
+    "你是「抽取经验提炼器」。给你一次从工业技术文档抽取出的结构化结果，"
+    "请总结出**可复用于同类文档**的抽取规则（要点式、每条可操作、只讲规则不讲具体数值、≤10 条）。只输出规则要点。"
+)
+_CONSOLIDATE_SYS = (
+    "你是「规则库维护器」。把「现有规则集」与「本轮新提炼规则」合并成**一份规范规则集**："
+    "去重、合并同类项、保持每条可操作、总数 ≤15 条、不要堆叠版本或近重复项。只输出合并后的最终规则集（编号列表）。"
+)
+
+
+def _v2_extract_system(deps, canonical: str) -> str:
+    """V2 抽取系统提示：schema+红线（取自 system-prompt.md 的"工作方式"之前）+ 内联反思 + (可选)注入已积累规则。"""
+    base = (deps.system_prompt or "").split("## 工作方式")[0].rstrip()
+    p = base + _NONE_REFLECT
+    if canonical.strip():
+        p += ("\n## 已积累的抽取经验（跨文档规则，务必逐条应用）\n" + canonical.strip() + "\n")
+    return p
+
+
+def _invoke_llm(deps, system_text, user_text, max_tokens=32768):
+    """单次 invoke（override 提示、无 skill、**显式 tools=[] 禁用 harness 烤入的工具**、无工具回路），返回 (text, usage)。
+
+    注意：抽取输出可能很大（实测 ~25k output tokens），max_tokens 需给足，否则触发
+    MaxTokensReached（截断报错）。默认 32768。
+    """
+    kwargs = {
+        "harnessArn": deps.deployed["HARNESS_ARN"],
+        "runtimeSessionId": _new_session_id(),
+        "messages": [{"role": "user", "content": [{"text": user_text}]}],
+        "systemPrompt": [{"text": system_text}],
+        "skills": [],
+        "tools": [],   # 禁用 extractor 烤入的 record/recall 工具（v2 不走工具回路）
+        "model": {"bedrockModelConfig": {"modelId": config.MODEL_ID, "temperature": 0, "maxTokens": max_tokens}},
+        "maxIterations": 2,
+        "timeoutSeconds": 900,
+    }
+    try:
+        consumed = _stream_consume_retry(deps, kwargs)
+        return consumed["text"], consumed["usage"]
+    except Exception as e:  # 含 HarnessStreamError 与 botocore EventStreamError
+        # MaxTokensReached 等截断：返回空文本让上层门禁处理（一般是 max_tokens 给少了）
+        if "maximum token" in str(e).lower() or "maxtokens" in str(e).lower():
+            return "", {"inputTokens": 0, "outputTokens": max_tokens, "totalTokens": max_tokens}
+        raise
+
+
+def run_ablation(doc_name, use_memory, deps=None, db_path=None) -> dict:
+    """V2 单变量消融：唯一变量=use_memory。其余（harness/抽取提示/单次invoke/模型）全相同。
+
+    use_memory=True：抽取前注入 canonical 规则集；抽取后 反思→consolidation→更新 canonical。
+    use_memory=False：纯抽取基线。
+    """
+    deps = _resolve_deps(deps)
+    if deps.corpus is None:
+        raise RuntimeError("corpus 模块缺失")
+    doc_text = deps.corpus.load_doc_text(doc_name)
+    try:
+        gt = deps.corpus.load_gt(doc_name)
+    except Exception:
+        gt = []
+    mem_id = deps.deployed.get("CUSTOM_MEMORY_ID")
+    usage = {"inputTokens": 0, "outputTokens": 0, "totalTokens": 0}
+
+    def _acc(u):
+        for k in usage:
+            usage[k] += u.get(k, 0)
+
+    canonical = ""
+    if use_memory:
+        canonical = memory_tools.read_canonical(mem_id, config.ACTOR_ID, client=deps.memory_client)
+
+    t0 = time.monotonic()
+    text, u = _invoke_llm(deps, _v2_extract_system(deps, canonical), doc_text, max_tokens=32768)
+    _acc(u)
+    extracted, revision_count = _parse_final(text)
+    if not _passes_gate(extracted):  # 兜底补一次
+        text2, u2 = _invoke_llm(deps, _v2_extract_system(deps, canonical),
+                                doc_text + "\n\n请只输出合法 JSON 数组 + __META__ 行。", max_tokens=32768)
+        _acc(u2)
+        e2, r2 = _parse_final(text2)
+        if _passes_gate(e2):
+            extracted, revision_count = e2, r2
+    elapsed = time.monotonic() - t0
+    passed = _passes_gate(extracted)
+
+    coverage = accuracy = None
+    if deps.scorer is not None:
+        try:
+            res = deps.scorer.score(extracted, gt, deps.judge_fn)
+            coverage, accuracy = res.get("coverage"), res.get("accuracy")
+        except Exception:
+            pass
+
+    # 记忆沉淀：反思本轮 → 与现有 canonical 合并（consolidation）
+    candidate = new_canon = ""
+    if use_memory and extracted:
+        candidate, u = _invoke_llm(deps, _REFLECT_SYS,
+                                   json.dumps(extracted, ensure_ascii=False), max_tokens=2048)
+        _acc(u)
+        new_canon, u = _invoke_llm(deps, _CONSOLIDATE_SYS,
+                                   f"现有规则集：\n{canonical or '（空）'}\n\n本轮新提炼规则：\n{candidate}",
+                                   max_tokens=3072)
+        _acc(u)
+        if new_canon.strip():
+            memory_tools.write_canonical(mem_id, config.ACTOR_ID, new_canon.strip(),
+                                         client=deps.memory_client)
+
+    run = {
+        "run_id": uuid4().hex, "ts": datetime.now(timezone.utc).isoformat(),
+        "doc_name": doc_name, "memory_mode": ("mem" if use_memory else "nomem"),
+        "warm": int(bool(use_memory)), "revision_count": revision_count,
+        "elapsed_sec": round(elapsed, 3), "input_tokens": usage["inputTokens"],
+        "output_tokens": usage["outputTokens"], "total_tokens": usage["totalTokens"],
+        "coverage": coverage, "accuracy": accuracy, "self_review_pass": int(bool(passed)),
+        "num_extracted": len(extracted), "num_gt": len(gt) if isinstance(gt, list) else 0,
+        "extracted_json": json.dumps(extracted, ensure_ascii=False),
+        "notes": json.dumps({"variant": "v2", "canonical_in_len": len(canonical),
+                             "canonical_out_len": len(new_canon)}, ensure_ascii=False),
+    }
+    deps.runstore.insert_run(run, path=db_path)
+    return run

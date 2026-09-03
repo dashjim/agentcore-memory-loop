@@ -39,6 +39,37 @@ def tact_session(actor_id: str, doc_name: str) -> str:
     return _pad_session(f"tact-{actor_id}-{h}")
 
 
+def canon_session(actor_id: str) -> str:
+    """V2 用：单一"规范规则集"分区（每次 consolidation 追加一版，读取取最新一版）。"""
+    return _pad_session(f"canon-{actor_id}")
+
+
+def read_canonical(memory_id, actor_id, client=None) -> str:
+    """V2：读最新的 canonical 规则集（按 eventTimestamp 取最近一次 consolidation 结果）。无则空串。"""
+    c = _client(client)
+    events = _list_all_events(c, memory_id, actor_id, canon_session(actor_id))
+    if not events:
+        return ""
+    newest = max(events, key=lambda e: e.get("eventTimestamp") or 0)
+    for p in (newest.get("payload") or []):
+        conv = p.get("conversational") if isinstance(p, dict) else None
+        if isinstance(conv, dict):
+            t = (conv.get("content") or {}).get("text")
+            if isinstance(t, str):
+                return t
+    return ""
+
+
+def write_canonical(memory_id, actor_id, text, client=None) -> None:
+    """V2：追加一版 canonical 规则集（read_canonical 只取最新，故等效"更新"，不堆重复版本供召回）。"""
+    c = _client(client)
+    c.create_event(
+        memoryId=memory_id, actorId=actor_id, sessionId=canon_session(actor_id),
+        eventTimestamp=datetime.now(timezone.utc),
+        payload=[{"conversational": {"content": {"text": text}, "role": "ASSISTANT"}}],
+    )
+
+
 def _session_for(scope: str, actor_id: str, doc_name: str = None) -> str:
     if scope == "strat":
         return strat_session(actor_id)

@@ -3,6 +3,7 @@
 /input/
 # 含从机密文档抽取出的内容
 /runs.db
+/runs_v2.db
 # 账号 ID + 真实资源 ARN
 /config.local.json
 
