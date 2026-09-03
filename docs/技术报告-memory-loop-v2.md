@@ -53,28 +53,34 @@ V1 用 `scope-extract` Skill（编号 SOP + record/recall 工具）承载反思�
   → 落库 runs_v2.db
 ```
 
+**执行主体（关键）**：本路径**不使用 AgentCore 的任何 memory strategy**——customMem 仅当"事件存储"（`list_events`/`create_event`）。记忆的注入/沉淀由**外层 orchestrator 代码**编排，而 **抽取/反思/合并/评分都是 Agent（Claude）**做的语言活（每步各一次 `invoke_harness`）。图中按主体着色：🟦=orchestrator 代码，🟩=Agent(LLM via invoke_harness)。
+
 ```mermaid
 flowchart TD
   S(["开始一次运行<br/>(doc, use_memory)"]) --> R{"use_memory?"}
-  R -- "mem" --> RC["read_canonical<br/>读最新规范规则集"]
-  RC --> INJ["注入 systemPrompt<br/>(抽取schema+红线+内联反思+已积累规则)"]
-  R -- "nomem" --> INJ0["systemPrompt<br/>(抽取schema+红线+内联反思, 无规则注入)"]
+  R -- "mem" --> RC["【代码】read_canonical<br/>读最新规范规则集(list_events)"]
+  RC --> INJ["【代码】注入 systemPrompt<br/>(schema+红线+内联反思+已积累规则)"]
+  R -- "nomem" --> INJ0["【代码】systemPrompt<br/>(schema+红线+内联反思, 不注入规则)"]
   INJ --> EX
-  INJ0 --> EX["invoke_harness 单次抽取<br/>skills=[] · tools=[] · temp=0 · maxTokens=32768"]
-  EX --> PARSE["解析 JSON 数组 + __META__<br/>(json_repair 兜底)"]
-  PARSE --> GATE{"合规门禁<br/>非空且字段齐?"}
-  GATE -- "否" --> RETRY["补一次 invoke"] --> PARSE
-  GATE -- "是" --> JUDGE["LLM-as-judge (harness承载)<br/>GT分块对齐·瞬时错误重试<br/>→ 覆盖率/准确率"]
+  INJ0 --> EX["【Agent/LLM】invoke_harness 单次抽取<br/>skills=[]·tools=[]·temp=0·maxTokens=32768"]
+  EX --> PARSE["【代码】解析 JSON+__META__ (json_repair兜底)"]
+  PARSE --> GATE{"【代码】合规门禁<br/>非空且字段齐?"}
+  GATE -- "否" --> RETRY["【Agent/LLM】补一次 invoke"] --> PARSE
+  GATE -- "是" --> JUDGE["【Agent/LLM】LLM-as-judge(harness承载)<br/>GT分块对齐·瞬时错误重试→覆盖率/准确率"]
   JUDGE --> MB{"use_memory?"}
-  MB -- "mem" --> REF["反思: 从本轮抽取提炼可复用规则(≤10)"]
-  REF --> CON["consolidation: 与现有规则集合并/去重/≤15条"]
-  CON --> WC["write_canonical 更新规则集"]
-  WC --> DB[("落库 runs_v2.db")]
+  MB -- "mem" --> REF["【Agent/LLM】反思: 从本轮抽取提炼可复用规则(≤10)"]
+  REF --> CON["【Agent/LLM】consolidation: 与现有规则集合并/去重/≤15条"]
+  CON --> WC["【代码】write_canonical 更新规则集(create_event)"]
+  WC --> DB[("【代码】落库 runs_v2.db")]
   MB -- "nomem" --> DB
-  classDef mem fill:#e8f0fe,stroke:#4285f4;
-  class RC,INJ,REF,CON,WC mem;
+  classDef code fill:#e8f0fe,stroke:#4285f4;
+  classDef llm fill:#e6f4ea,stroke:#34a853;
+  class RC,INJ,INJ0,PARSE,GATE,WC,DB code;
+  class EX,RETRY,JUDGE,REF,CON llm;
 ```
-> 蓝色节点为 **mem 模式专属**（记忆的注入与沉淀）；其余步骤两种模式完全相同——这正是"单变量"：唯一差别就是蓝色这几步是否发生。
+> 🟦【代码】=外层 orchestrator（boto3，仅把 customMem 当事件存储）；🟩【Agent/LLM】=Claude 经 `invoke_harness` 完成（抽取/反思/合并/评分）。
+> **单变量**：`use_memory` 只控制"是否 read_canonical 注入 + 反思→合并→write_canonical"这几步；其余对两模式完全相同。
+> 对比：**episodic 模式**的"提炼情节/反思"才是 **AgentCore EPISODIC strategy 托管完成**（异步、AWS 内置提示词）；V2 custom 是我们自己编排 LLM 调用，AgentCore 只做存储。
 
 ### 1.7 评分（LLM-as-judge）
 judge 复用 harness 承载（会话角色无 Bedrock 直连权限）；GT 每 20 条分块对齐、逐字段判 正确/部分/错误；`覆盖率=对齐上的GT数/GT总数`、`准确率=字段级正确率`。对 harness 502/限流等**瞬时错误自动重试**（V2 新增，保障批量评分稳定）。GT 仅用于评分，绝不进 agent 上下文。
