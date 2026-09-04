@@ -129,11 +129,8 @@ def score(extracted: list[dict], gt: list[dict], judge_fn) -> dict:
     # 无 Ground Truth：coverage/accuracy 记为 None，不调用裁判。
     if num_gt == 0:
         return {
-            "coverage": None,
-            "accuracy": None,
-            "matches": [],
-            "num_extracted": num_extracted,
-            "num_gt": 0,
+            "coverage": None, "precision": None, "f1": None, "accuracy": None,
+            "matches": [], "num_extracted": num_extracted, "num_gt": 0,
         }
 
     # 分块对齐：每次给全部 extracted + 一小批 gt，避免单次输出过大导致截断/摆烂。
@@ -173,13 +170,22 @@ def score(extracted: list[dict], gt: list[dict], judge_fn) -> dict:
                 elif key in _VERDICT_SCORE:
                     field_scores.append(_VERDICT_SCORE[key])
 
-    coverage = matched / num_gt
+    # coverage=召回(matched GT / GT总数)；precision=精确率(匹配上的抽取项 / 抽取总数,
+    # 惩罚"过度抽取/过度拆分")；f1=两者调和平均。accuracy=字段级正确率(另一维度,匹配项质量)。
+    coverage = matched / num_gt                      # = recall
+    precision = (matched / num_extracted) if num_extracted else None
+    if coverage and precision:
+        f1 = 2 * precision * coverage / (precision + coverage)
+    else:
+        f1 = 0.0
     accuracy = (sum(field_scores) / len(field_scores)) if field_scores else None
     alignments = all_alignments
 
     return {
-        "coverage": coverage,
-        "accuracy": accuracy,
+        "coverage": coverage,        # recall
+        "precision": precision,
+        "f1": f1,
+        "accuracy": accuracy,        # 字段级正确率(匹配项内)
         "matches": alignments,
         "num_extracted": num_extracted,
         "num_gt": num_gt,
