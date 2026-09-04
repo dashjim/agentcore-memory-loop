@@ -487,5 +487,8 @@ EPISODIC 策略内部是**三段式流水线**，各有默认提示词 + 输出 
 9. ReAct：Reasoning + Acting 的推理-行动循环（Yao et al., 2022）：
    https://arxiv.org/abs/2210.03629
 10. SCOPE：Self-evolving Context Optimization via Prompt Evolution（战略/战术记忆 + 提示进化）——见上文第 1 篇原博客所引参考文献。
+11. LangChain｜The Art of Loop Engineering（loopcraft：Agent loop → Verification loop → Event-driven loop → **Hill climbing loop**）：
+    https://www.langchain.com/blog/the-art-of-loop-engineering
+    - **本项目对应其 Level 4「Hill climbing loop」**：每次运行产生 trace → 分析/反思 → **反过来改写 harness 的辅助配置**，使后续运行更好。原文明确指出该 loop 可优化的对象包括 **memory 与 retrieved skills**——我们的 custom/mem 正是把该"配置"实例化为**累积并 consolidation 的规则记忆**（run→反思→合并 canonical→下轮受益）。Level 2「Verification loop」则对应我们的 **自审+门禁**，Level 1「Agent loop」对应 Harness 内的抽取循环。
 
 > 说明：SCOPE 的原始论文出处以原博客参考文献为准，本报告未独立核对其 arXiv 编号，故不臆造链接。

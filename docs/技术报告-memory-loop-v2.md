@@ -204,3 +204,6 @@ cd memory-loop && python3 scripts/run_experiments_v2.py    # nomem×2 + mem×4, 
 
 ## 7. 引用
 见 V1 报告《引用与参考》（原博客、namespace 设计博客、AWS 官方文档、@aws/agentcore、Strands、json-repair、ReAct/SCOPE）。
+
+新增：**LangChain｜The Art of Loop Engineering** https://www.langchain.com/blog/the-art-of-loop-engineering
+- 本项目正对应其**四层 loop**：Level 1 Agent loop = Harness 内抽取循环；Level 2 Verification loop = 自审 + 合规门禁（+ LLM-as-judge 评分即其 grader）；Level 4 **Hill-climbing loop** = 本报告的核心——**每次运行→反思 trace→改写"辅助配置"（原文明确含 memory）→下轮更好**，即我们的 run→反思→consolidation 更新规则记忆闭环。（Level 3 Event-driven loop 本项目未涉及。）
