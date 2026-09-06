@@ -784,6 +784,118 @@ def run_ablation(doc_name, use_memory, deps=None, db_path=None, opt=False) -> di
 
 
 # =========================================================================== #
+# LLM 检查器（对比 GT 自动产出可迁移反馈）→ 写进记忆 → 下一次抽取注入。
+# 模拟真实回路：大模型质检 / 人类审阅对比标准答案给反馈，记忆负责捕获并复用。
+# GT 只进"检查器"这一步，绝不进抽取器。
+# =========================================================================== #
+_CHECKER_SYS = (
+    "你是抽取质检专家。给你【某次抽取结果】和【标准答案 GT】。对比两者，产出**可迁移、指导未来抽取**的改进反馈"
+    "（自然语言要点，≤10 条，每条可操作）。重点：①指出**系统性漏抽的类别/类型**（是哪一类东西整片没抽，如无损检测/环境/散文式要求）；"
+    "②指出**粒度问题**（过度拆分/该合并）；③给出**规则性、可复用**的纠正指引（如'非定量要求也要抽、映射进某字段'）。"
+    "**不要逐条罗列标准答案里的具体条目**——要给出下次遇到同类文档能照做的规则。只输出反馈要点。"
+)
+
+
+def run_llm_feedback(doc_name, deps=None, db_path=None) -> dict:
+    """LLM 检查器反馈被记忆捕获的效果验证（模拟大模型质检/人类反馈回路）。
+
+    步骤：①基线抽取(无记忆)→②LLM 检查器对比 GT 产出可迁移反馈→③反馈写进记忆(canonical)→
+    ④用**基线提示词**重新抽取、注入该反馈记忆→⑤评分。GT 只进检查器，不进抽取器。
+    落库两条：llm_fb_r1(基线) / llm_fb_r2(注入检查器反馈后)，notes 存反馈全文。
+    """
+    deps = _resolve_deps(deps)
+    doc_text = deps.corpus.load_doc_text(doc_name)
+    try:
+        gt = deps.corpus.load_gt(doc_name)
+    except Exception:
+        gt = []
+    mem_id = deps.deployed.get("CUSTOM_MEMORY_ID")
+    base_sys = _v2_extract_system(deps, "")   # 基线抽取提示（无 opt 强化）
+    pair_id = uuid4().hex
+
+    def _extract(system_text):
+        u_acc = {"inputTokens": 0, "outputTokens": 0, "totalTokens": 0}
+        text, u = _invoke_llm(deps, system_text, doc_text, max_tokens=32768)
+        for k in u_acc:
+            u_acc[k] += u.get(k, 0)
+        ex, rev = _parse_final(text)
+        fp = _passes_gate(ex)
+        gr = not fp
+        if gr:
+            t2, u2 = _invoke_llm(deps, system_text, doc_text + "\n\n请只输出合法 JSON 数组 + __META__ 行。", max_tokens=32768)
+            for k in u_acc:
+                u_acc[k] += u2.get(k, 0)
+            e2, r2 = _parse_final(t2)
+            if _passes_gate(e2):
+                ex, rev = e2, r2
+        return ex, rev, u_acc, fp, gr
+
+    def _score(ex):
+        cov = acc = prec = f1 = None; jt = 0
+        if deps.scorer is not None and ex:
+            box = {"t": 0}
+            def _j(prompt):
+                jtxt, ju = _invoke_llm(deps, _JUDGE_SYSTEM, prompt, max_tokens=8192)
+                box["t"] += ju.get("totalTokens", 0); return jtxt
+            try:
+                r = deps.scorer.score(ex, gt, _j)
+                cov, acc, prec, f1 = r.get("coverage"), r.get("accuracy"), r.get("precision"), r.get("f1")
+            except Exception:
+                pass
+            jt = box["t"]
+        return cov, acc, prec, f1, jt
+
+    def _persist(mode, ex, rev, u, cov, acc, prec, f1, jt, fp, gr, extra):
+        run = {
+            "run_id": uuid4().hex, "ts": datetime.now(timezone.utc).isoformat(),
+            "doc_name": doc_name, "memory_mode": mode, "warm": 0, "revision_count": rev,
+            "elapsed_sec": 0.0, "input_tokens": u["inputTokens"], "output_tokens": u["outputTokens"],
+            "total_tokens": u["totalTokens"], "coverage": cov, "accuracy": acc,
+            "self_review_pass": int(_passes_gate(ex)), "num_extracted": len(ex),
+            "num_gt": len(gt) if isinstance(gt, list) else 0,
+            "extracted_json": json.dumps(ex, ensure_ascii=False),
+            "notes": json.dumps({"variant": "llm-feedback", "pair_id": pair_id, "precision": prec,
+                                 "f1": f1, "judge_total_tokens": jt, "first_output_pass": bool(fp),
+                                 "gate_retry": gr, **extra}, ensure_ascii=False),
+        }
+        deps.runstore.insert_run(run, path=db_path)
+        return run
+
+    # 清空 canon，保证注入的就是本轮检查器反馈
+    c = memory_tools._client(deps.memory_client)
+    sid = memory_tools.canon_session(config.ACTOR_ID)
+    for ev in memory_tools._list_all_events(c, mem_id, config.ACTOR_ID, sid):
+        if ev.get("eventId"):
+            c.delete_event(memoryId=mem_id, actorId=config.ACTOR_ID, sessionId=sid, eventId=ev["eventId"])
+
+    # ① 基线抽取
+    ex1, rev1, u1, fp1, gr1 = _extract(base_sys)
+    cov1, acc1, prec1, f1_1, jt1 = _score(ex1)
+    _persist("llm_fb_r1", ex1, rev1, u1, cov1, acc1, prec1, f1_1, jt1, fp1, gr1, {})
+
+    # ② LLM 检查器对比 GT 产出可迁移反馈
+    feedback, _ = _invoke_llm(
+        deps, _CHECKER_SYS,
+        f"【某次抽取结果】\n{json.dumps(ex1, ensure_ascii=False)}\n\n【标准答案 GT】\n{json.dumps(gt, ensure_ascii=False)}",
+        max_tokens=2048,
+    )
+    # ③ 反馈写进记忆
+    memory_tools.write_canonical(mem_id, config.ACTOR_ID,
+                                 "【质检反馈·务必逐条应用】\n" + (feedback or "").strip(), client=c)
+
+    # ④ 基线提示词 + 注入检查器反馈记忆，重新抽取
+    canonical = memory_tools.read_canonical(mem_id, config.ACTOR_ID, client=c)
+    ex2, rev2, u2, fp2, gr2 = _extract(_v2_extract_system(deps, canonical))
+    cov2, acc2, prec2, f2_2, jt2 = _score(ex2)
+    _persist("llm_fb_r2", ex2, rev2, u2, cov2, acc2, prec2, f2_2, jt2, fp2, gr2,
+             {"feedback": feedback or "", "feedback_len": len(feedback or "")})
+
+    return {"pair_id": pair_id, "feedback": feedback,
+            "r1": {"coverage": cov1, "precision": prec1, "f1": f1_1, "num_extracted": len(ex1)},
+            "r2": {"coverage": cov2, "precision": prec2, "f1": f2_2, "num_extracted": len(ex2)}}
+
+
+# =========================================================================== #
 # Reflection（Level-2 验证循环）：抽取→批评者(看原文+本次输出,不看GT)→带批评重抽同一篇
 # 用于回答：用户此前观察到"有效"的 reflection 模式，在我们 harness 里能否复现？
 # 与 run_ablation(mem) 的关键差异：反馈是"针对本次输出的具体整改意见"(而非抽象规则)、

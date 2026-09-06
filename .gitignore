@@ -33,3 +33,4 @@ docs/e2e_history.png
 docs/e2e_expC_lessons.png
 docs/e2e_expA_rounds_cov.png
 /runs_v2_hf.db
+/runs_llm_fb.db
