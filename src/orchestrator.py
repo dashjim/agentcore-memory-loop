@@ -148,7 +148,7 @@ _TRANSIENT = ("502", "500", "503", "runtimeclienterror", "throttl",
               "serviceunavailable", "service unavailable", "timed out", "timeout")
 
 
-def _stream_consume_retry(deps, kwargs, retries=4, base_sleep=3):
+def _stream_consume_retry(deps, kwargs, retries=6, base_sleep=5):
     """invoke_harness + 消费流，对瞬时错误（502/5xx/限流）重试；MaxTokens 类不重试（上抛）。"""
     last = None
     for i in range(retries):
