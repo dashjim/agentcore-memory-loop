@@ -115,7 +115,7 @@
       <div class="card"><div class="n">指标①</div><h4>覆盖率(召回)</h4><p>抽出的覆盖了多少标准答案。</p></div>
       <div class="card"><div class="n">指标②</div><h4>精确率</h4><p>抽出的里多少对，惩罚乱抽/过度拆分。</p></div>
       <div class="card"><div class="n">指标③</div><h4>F1</h4><p>前两者调和平均，综合看。</p></div>
-      <div class="card" style="border-color:var(--accent)"><div class="n">诊断</div><h4>recall_fail</h4><p>某条标准答案 与<b>任何</b>抽取项零重叠 = 根本没抽出来。全篇关键。</p></div>
+      <div class="card" style="border-color:var(--accent)"><div class="n">诊断</div><h4>真召回失败</h4><p>某条标准答案 与<b>任何</b>抽取项零重叠 = 根本没抽出来。全篇关键。</p></div>
     </div>
   </div>
   <div class="foot"><span>干净的对照，才能干净地回答</span><span>3 / 15</span></div>
@@ -128,8 +128,8 @@
   <div class="lead">不是一次实验，而是环环相扣的四步——每步回答上一步逼出的新问题。</div>
   <div class="body">
     <div class="cards c2" style="grid-template-rows:auto auto;gap:13px">
-      <div class="card"><div class="n">第 0 步 · 诊断</div><h4>为什么记忆没用？</h4><p>错误分析发现：漏抽主体是<b>散文/流程类要求</b>，定量 schema 抓不住。→ 是任务定义问题，不是方法无效。</p></div>
-      <div class="card"><div class="n">实验 A · 提示词</div><h4>把教训写进提示词</h4><p>对比标准答案 得出教训 → 写进提示词。recall_fail <b class="good-t">27→1</b>。<b>证明改得动</b>。但——用到了标准答案（oracle）。</p></div>
+      <div class="card"><div class="n">第 0 步 · 诊断</div><h4>为什么记忆没用？</h4><p>错误分析发现：漏抽主体是<b>离散文字/流程类要求</b>，定量 schema 抓不住。→ 是任务定义问题，不是方法无效。</p></div>
+      <div class="card"><div class="n">实验 A · 提示词</div><h4>把教训写进提示词</h4><p>对比标准答案 得出教训 → 写进提示词。真召回失败 <b class="good-t">27→1</b>。<b>证明改得动</b>。但——用到了标准答案（oracle）。</p></div>
       <div class="card" style="border-color:var(--goodbd);background:var(--goodbg)"><div class="n" style="color:var(--good)">实验 C · 反馈进记忆</div><h4>真实回路：反馈本来就有</h4><p>让<b>大模型对比标准答案 产出反馈 → 写进记忆</b> → 下次注入。试金石 <b class="good-t">7/7</b>。记忆能捕获反馈。</p></div>
       <div class="card" style="border-color:var(--badbd);background:var(--badbg)"><div class="n" style="color:var(--bad)">实验 B · 对照</div><h4>没反馈、只靠自省呢？</h4><p>让模型反思自己输出、无 oracle。试金石 <b class="bad-t">1/7</b>。→ 坐实增益来自<b>反馈内容</b>，不是机制。</p></div>
     </div>
@@ -168,14 +168,14 @@
     <div class="cards c2">
       <div class="card"><div class="n">漏项长什么样</div><h4>都不是「指标+数值」</h4>
         <ul><li>「外观颜色及喷涂 LOGO 须与甲方确认」</li><li>「真空度测量报告 / 真空度测量要求」</li><li>「外部油漆等工序」</li><li>「承制单位细化设计…提供全套地脚螺栓」</li></ul>
-        <p style="margin-top:8px">全是<b>散文式、流程式、待确认类</b>要求。</p></div>
+        <p style="margin-top:8px">全是<b>离散文字、流程、待确认类</b>要求。</p></div>
       <div class="card" style="border-color:var(--accent)"><div class="n" style="color:var(--accent)">根因</div><h4>schema 让模型「以为不该抽」</h4>
         <p>抽取 schema 天生面向定量指标。模型看到没有数值、只有要求的话，就默认<b>「这不是一条指标」</b>直接跳过。</p>
         <p style="margin-top:8px" class="em">漏的不是模型能力，是它以为这些不该抽。</p></div>
     </div>
     <div class="quote" style="margin-top:14px">教训二：<b>「没效果」往往不是终点，而是一个还没做的错误分析</b>。不做归因，就会把「任务定义问题」误判成「方法无效」。</div>
   </div>
-  <div class="foot"><span>recall_fail 把「没抽出来」和「抽了对不齐」分开</span><span>6 / 15</span></div>
+  <div class="foot"><span>真召回失败 把「没抽出来」和「抽了对不齐」分开</span><span>6 / 15</span></div>
 </section>
 
 <!-- 7 EXPERIMENT A -->
@@ -185,22 +185,22 @@
   <div class="lead">只显式加：非定量要求也要抽，「要求类型」放指标名称、「要求内容」放指标特征。</div>
   <div class="body">
     <table style="margin-bottom:10px">
-      <thead><tr><th>　</th><th>覆盖率</th><th>recall_fail</th><th>散文类试金石(抓到/共7)</th></tr></thead>
+      <thead><tr><th>　</th><th>覆盖率</th><th>真召回失败</th><th>离散文字类试金石(抓到/共7)</th></tr></thead>
       <tbody>
         <tr><td>基线（无此提示）</td><td class="num">0.642</td><td class="num bad-t">27</td><td class="num">1 / 7</td></tr>
         <tr class="hl-good"><td><b>加了提示词</b></td><td class="num">0.715</td><td class="num good-t">1</td><td class="num good-t">7 / 7</td></tr>
       </tbody>
     </table>
     <div class="card" style="padding:11px 15px;margin-bottom:12px;border-color:var(--accent)">
-      <div class="n" style="color:var(--accent)">为什么 recall_fail 崩到 1、覆盖率只 +0.07？——两把尺量两件事</div>
-      <p style="font-size:15px;margin-top:4px"><b>recall_fail = 松尺</b>（有没有"沾边"抽到）→ 模型开始抽散文类，几乎每条标准答案 都沾边，近乎归零；<b>覆盖率 = 严尺</b>（裁判一对一干净对齐）→ 受"粒度对不齐 + 多抽拉低精确率(0.70)"限制。即已从<b>"整类视而不见"→"基本抽到、只是粒度没对齐"</b>；+0.07 低估了真实进步（残余多是粒度问题，不再是召回失败）。</p>
+      <div class="n" style="color:var(--accent)">为什么 真召回失败 崩到 1、覆盖率只 +0.07？——两把尺量两件事</div>
+      <p style="font-size:15px;margin-top:4px"><b>真召回失败 = 松尺</b>（有没有"沾边"抽到）→ 模型开始抽离散文字类，几乎每条标准答案 都沾边，近乎归零；<b>覆盖率 = 严尺</b>（裁判一对一干净对齐）→ 受"粒度对不齐 + 多抽拉低精确率(0.70)"限制。即已从<b>"整类视而不见"→"基本抽到、只是粒度没对齐"</b>；+0.07 低估了真实进步（残余多是粒度问题，不再是召回失败）。</p>
     </div>
     <div class="cards c2">
       <div class="card" style="border-color:var(--goodbd);background:var(--goodbg)"><div class="n" style="color:var(--good)">结果</div><p style="margin-top:4px"><b>证明是任务定义问题，改得动</b>——不是方法无效。</p></div>
       <div class="card" style="border-color:var(--gold);background:var(--goldbg)"><div class="n" style="color:var(--gold)">真正该问的</div><p style="margin-top:4px">现实里反馈不缺（人类纠正 / 大模型对比标准答案）。<b class="em">这种反馈被记忆捕获后，实际有效吗？</b></p></div>
     </div>
   </div>
-  <div class="foot"><span>散文类试金石 = 「任务规格类教训」的探针</span><span>7 / 15</span></div>
+  <div class="foot"><span>离散文字类试金石 = 「任务规格类教训」的探针</span><span>7 / 15</span></div>
 </section>
 
 <!-- 8 EXPERIMENT C -->
@@ -217,7 +217,7 @@
       <div class="node good-t" style="border-color:var(--goodbd);background:var(--goodbg);color:var(--good)">试金石 7/7</div>
     </div>
     <table style="margin-bottom:12px">
-      <thead><tr><th>　</th><th>覆盖率</th><th>精确率</th><th>F1</th><th>recall_fail</th><th>散文类</th></tr></thead>
+      <thead><tr><th>　</th><th>覆盖率</th><th>精确率</th><th>F1</th><th>真召回失败</th><th>离散文字类</th></tr></thead>
       <tbody>
         <tr><td>基线</td><td class="num">0.642</td><td>–</td><td>–</td><td class="num">27</td><td class="num">1/7</td></tr>
         <tr class="hl-good"><td><b>大模型反馈写进记忆</b></td><td class="num good-t">0.813</td><td class="num">0.813</td><td class="num good-t">0.813</td><td class="num">2</td><td class="num good-t">7/7</td></tr>
@@ -237,7 +237,7 @@
     <div class="cards c2" style="margin-bottom:14px">
       <div class="card" style="border-color:var(--badbd);background:var(--badbg)"><span class="pill b">实验 B · 无 oracle</span>
         <h4 style="margin-top:9px">试金石纹丝不动，钉死 1 / 7</h4>
-        <p>模型只看自己的产出，没有信号告诉它「散文类也算数」。蒸馏出的只是通用文风规则（"复合指标要拆分"），碰不到真问题，还因过度拆分帮倒忙。</p></div>
+        <p>模型只看自己的产出，没有信号告诉它「离散文字类也算数」。蒸馏出的只是通用文风规则（"复合指标要拆分"），碰不到真问题，还因过度拆分帮倒忙。</p></div>
       <div class="card"><div class="n">决定性对照</div><h4>同机制，只变内容</h4>
         <table style="font-size:14px"><tbody>
           <tr class="hl-bad"><td>自省规则(无oracle)</td><td class="num bad-t">1/7</td></tr>
@@ -290,7 +290,7 @@
         <pre style="margin-top:8px"><span class="no">5.</span> 多部件拆分规则：按部件逐条拆分…
 <span class="no">6.</span> 复合指标拆分规则：按指标逐条拆分…
 <span class="no">9.</span> 阀门/仪表：规格与数量各一条…</pre>
-        <p style="margin-top:8px">全是<b>通用文风/粒度规则</b>，没一条说「该抽散文类」——它不知道自己漏了这类。还诱发过度拆分。</p></div>
+        <p style="margin-top:8px">全是<b>通用文风/粒度规则</b>，没一条说「该抽离散文字类」——它不知道自己漏了这类。还诱发过度拆分。</p></div>
       <div class="card" style="border-color:var(--goodbd);background:var(--goodbg)"><span class="pill g">实验C · 对比标准答案的反馈</span>
         <pre style="margin-top:8px"><span class="cm">【质检反馈·务必逐条应用】</span>
 <span class="ok">1.</span> 非定量要求也要抽：定性/流程/
@@ -353,10 +353,10 @@
 <section class="slide" id="s14">
   <div class="top"><span class="kicker">DATA</span><span class="deck">全量数据 · 同一把尺</span></div>
   <h2>四种回路放同一把尺</h2>
-  <div class="lead">看散文类试金石这一列就够——它是任务规格类教训的探针：只有引入 oracle 才从 1/7 跳到 7/7。</div>
+  <div class="lead">看离散文字类试金石这一列就够——它是任务规格类教训的探针：只有引入 oracle 才从 1/7 跳到 7/7。</div>
   <div class="body">
     <table>
-      <thead><tr><th>回路</th><th>教训来源</th><th>教训放哪</th><th>覆盖率</th><th>F1</th><th>recall_fail</th><th>散文试金石</th></tr></thead>
+      <thead><tr><th>回路</th><th>教训来源</th><th>教训放哪</th><th>覆盖率</th><th>F1</th><th>真召回失败</th><th>离散文字试金石</th></tr></thead>
       <tbody>
         <tr><td>基线（无记忆）</td><td>—</td><td>—</td><td class="num">0.642</td><td>–</td><td class="num">27</td><td class="num">1/7</td></tr>
         <tr class="hl-bad"><td>自省记忆</td><td>模型自省(无 oracle)</td><td>记忆</td><td class="num">0.561</td><td>–</td><td class="num">18*</td><td class="num bad-t">1/7</td></tr>
@@ -366,7 +366,7 @@
       </tbody>
     </table>
     <div class="cards c2" style="margin-top:14px">
-      <div class="card"><div class="n">读法</div><p style="font-size:14.5px">*自省记忆 recall_fail=18 低于基线 27 是<b>过度拆分噪声</b>（细条碰巧 token 重叠上）；试金石 1/7 才是真相——真正该学的一条没学会。</p></div>
+      <div class="card"><div class="n">读法</div><p style="font-size:14.5px">*自省记忆 真召回失败=18 低于基线 27 是<b>过度拆分噪声</b>（细条碰巧 token 重叠上）；试金石 1/7 才是真相——真正该学的一条没学会。</p></div>
       <div class="card" style="border-color:var(--accent)"><div class="n" style="color:var(--accent)">一句话</div><p style="font-size:14.5px">同一记忆机制，把内容从「无 oracle 自省」换成「有 oracle 反馈」，试金石 <b>1/7 → 7/7</b>。</p></div>
     </div>
   </div>
