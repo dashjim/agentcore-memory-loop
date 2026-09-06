@@ -182,18 +182,22 @@
 <section class="slide" id="s7">
   <div class="top"><span class="kicker">EXPERIMENT · A</span><span class="deck">把漏项当线索，改提示词</span></div>
   <h2>教训写进提示词 —— 有效，但用到了 GT</h2>
-  <div class="lead">不改 schema，只显式加：非定量要求也要抽，「要求类型」放指标名称、「要求内容」放指标特征，并附真实漏项当示例。</div>
+  <div class="lead">只显式加：非定量要求也要抽，「要求类型」放指标名称、「要求内容」放指标特征。</div>
   <div class="body">
-    <table style="margin-bottom:14px">
+    <table style="margin-bottom:10px">
       <thead><tr><th>　</th><th>覆盖率</th><th>recall_fail</th><th>散文类试金石(抓到/共7)</th></tr></thead>
       <tbody>
         <tr><td>基线（无此提示）</td><td class="num">0.642</td><td class="num bad-t">27</td><td class="num">1 / 7</td></tr>
         <tr class="hl-good"><td><b>加了提示词</b></td><td class="num">0.715</td><td class="num good-t">1</td><td class="num good-t">7 / 7</td></tr>
       </tbody>
     </table>
+    <div class="card" style="padding:11px 15px;margin-bottom:12px;border-color:var(--accent)">
+      <div class="n" style="color:var(--accent)">为什么 recall_fail 崩到 1、覆盖率只 +0.07？——两把尺量两件事</div>
+      <p style="font-size:15px;margin-top:4px"><b>recall_fail = 松尺</b>（有没有"沾边"抽到）→ 模型开始抽散文类，几乎每条 GT 都沾边，近乎归零；<b>覆盖率 = 严尺</b>（裁判一对一干净对齐）→ 受"粒度对不齐 + 多抽拉低精确率(0.70)"限制。即已从<b>"整类视而不见"→"基本抽到、只是粒度没对齐"</b>；+0.07 低估了真实进步（残余多是粒度问题，不再是召回失败）。</p>
+    </div>
     <div class="cards c2">
-      <div class="card" style="border-color:var(--goodbd);background:var(--goodbg)"><div class="n" style="color:var(--good)">结果</div><h4>真召回失败 27 → 1</h4><p>之前漏的散文类全抓到了。<b>证明是任务定义问题，改得动</b>——不是方法无效。</p></div>
-      <div class="card" style="border-color:var(--gold);background:var(--goldbg)"><div class="n" style="color:var(--gold)">真正该问的</div><h4>反馈本来就有——它有效吗？</h4><p>现实里反馈不缺（人类纠正 / 大模型对比 GT 检查）。问题是：<b class="em">这种反馈被记忆捕获后，实际有效吗？</b></p></div>
+      <div class="card" style="border-color:var(--goodbd);background:var(--goodbg)"><div class="n" style="color:var(--good)">结果</div><p style="margin-top:4px"><b>证明是任务定义问题，改得动</b>——不是方法无效。</p></div>
+      <div class="card" style="border-color:var(--gold);background:var(--goldbg)"><div class="n" style="color:var(--gold)">真正该问的</div><p style="margin-top:4px">现实里反馈不缺（人类纠正 / 大模型对比 GT）。<b class="em">这种反馈被记忆捕获后，实际有效吗？</b></p></div>
     </div>
   </div>
   <div class="foot"><span>散文类试金石 = 「任务规格类教训」的探针</span><span>7 / 15</span></div>
