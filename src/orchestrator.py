@@ -614,6 +614,34 @@ _CONSOLIDATE_SYS_OPT = (
     "若已有规则过度强调'拆分/独立成条'，改写为'粒度对齐 GT、默认一原文一记录'。只输出最终规则集（编号列表）。"
 )
 
+# ---- opt v2 变体（据 reflection 误差分析：漏抽主体是"散文/流程/报告/定性类要求"——不符合定量三元组
+#      → 显式指示把非定量要求也映射进 指标名称/指标特征；schema 不变）----
+_OPT2_EXTRACT_ADDON = (
+    "\n## 本轮强化要求（务必遵守）\n"
+    "1. **不要只抽定量指标**：除带数值/规格的技术指标外，**定性要求、流程/工序要求、报告/测量要求、"
+    "待确认/待细化事项**同样要逐条抽取。做法——把「要求类型」放入『指标名称』、「要求内容」放入『指标特征』"
+    "（即使没有数值也要成条）。示例：\n"
+    "   - “外观颜色及喷涂 LOGO 须与甲方确认” → 指标名称=外观颜色与喷涂确认；指标特征=须与甲方确认\n"
+    "   - “真空度测量报告 / 真空度测量要求” → 指标名称=真空度测量；指标特征=需按要求测量并提供报告\n"
+    "   - “外部油漆等工序” → 指标名称=外部油漆工序；指标特征=按工序要求执行\n"
+    "   - “承制单位细化设计…提供全套地脚螺栓” → 指标名称=地脚螺栓；指标特征=提供全套、按土建尺寸细化\n"
+    "2. **覆盖常被漏抽的类别**：真空度/真空度测量、无损检测(RT/PT/UT 比例/合格级别/标准)、"
+    "安装环境(温度/风/雪/地震)、主要受压元件、阀门仪表、管口接管/法兰、材料材质——逐条抽取，勿遗漏。\n"
+    "3. **粒度对齐 GT**：默认**一条原文=一条记录**；仅当一句确含多个**相互独立**的指标时才拆；严禁过度拆分。"
+)
+_REFLECT_SYS_OPT2 = (
+    "你是「抽取经验提炼器」。总结**可复用于同类文档**的抽取规则（≤10 条、可操作、只讲规则不讲具体值）。"
+    "规则必须强调：①**非定量要求也要抽**（定性/流程/工序/报告/待确认类，用 指标名称=要求类型、指标特征=要求内容）；"
+    "②覆盖易漏类别（真空度测量/无损检测/安装环境/受压元件/阀门仪表/管口接管/材料）；"
+    "③粒度对齐 GT（默认一原文一记录、勿过度拆分）。只输出规则要点。"
+)
+_CONSOLIDATE_SYS_OPT2 = (
+    "你是「规则库维护器」。合并「现有规则集」与「本轮新提炼规则」成**一份规范规则集**（去重、≤15 条、可操作）。"
+    "**必须保留**：①非定量要求（定性/流程/报告/待确认）也要抽、映射进 指标名称/指标特征；"
+    "②易漏类别覆盖（真空度测量/无损检测/安装环境/受压元件/阀门仪表/管口接管/材料）；"
+    "③粒度对齐 GT（默认一原文一记录）。只输出最终规则集（编号列表）。"
+)
+
 
 def _v2_extract_system(deps, canonical: str) -> str:
     """V2 抽取系统提示：schema+红线（取自 system-prompt.md 的"工作方式"之前）+ 内联反思 + (可选)注入已积累规则。"""
@@ -656,7 +684,8 @@ def run_ablation(doc_name, use_memory, deps=None, db_path=None, opt=False) -> di
 
     use_memory=True：抽取前注入 canonical 规则集；抽取后 反思→consolidation→更新 canonical。
     use_memory=False：纯抽取基线。
-    opt=True：用优化后的提示词（补易漏类别 + 抑制过度拆分 + 优化的 reflect/consolidate），用于优化验证。
+    opt：优化提示词变体——False=原版；True/"v1"=补易漏类别+抑制过度拆分；
+         "v2"=在 v1 基础上进一步"非定量要求(定性/流程/报告/待确认)也抽"（据 reflection 误差分析）。
     """
     deps = _resolve_deps(deps)
     if deps.corpus is None:
@@ -673,11 +702,19 @@ def run_ablation(doc_name, use_memory, deps=None, db_path=None, opt=False) -> di
         for k in usage:
             usage[k] += u.get(k, 0)
 
+    # 选择 opt 变体的三段提示词 + 落库标签
+    if opt == "v2":
+        _addon, _refl_sys, _consol_sys, _vtag = _OPT2_EXTRACT_ADDON, _REFLECT_SYS_OPT2, _CONSOLIDATE_SYS_OPT2, "v2-opt2"
+    elif opt:
+        _addon, _refl_sys, _consol_sys, _vtag = _OPT_EXTRACT_ADDON, _REFLECT_SYS_OPT, _CONSOLIDATE_SYS_OPT, "v2-opt"
+    else:
+        _addon, _refl_sys, _consol_sys, _vtag = "", _REFLECT_SYS, _CONSOLIDATE_SYS, "v2"
+
     canonical = ""
     if use_memory:
         canonical = memory_tools.read_canonical(mem_id, config.ACTOR_ID, client=deps.memory_client)
 
-    ext_sys = _v2_extract_system(deps, canonical) + (_OPT_EXTRACT_ADDON if opt else "")
+    ext_sys = _v2_extract_system(deps, canonical) + _addon
     t0 = time.monotonic()
     text, u = _invoke_llm(deps, ext_sys, doc_text, max_tokens=32768)
     _acc(u)
@@ -714,10 +751,10 @@ def run_ablation(doc_name, use_memory, deps=None, db_path=None, opt=False) -> di
     # 记忆沉淀：反思本轮 → 与现有 canonical 合并（consolidation）
     candidate = new_canon = ""
     if use_memory and extracted:
-        candidate, u = _invoke_llm(deps, _REFLECT_SYS_OPT if opt else _REFLECT_SYS,
+        candidate, u = _invoke_llm(deps, _refl_sys,
                                    json.dumps(extracted, ensure_ascii=False), max_tokens=2048)
         _acc(u)
-        new_canon, u = _invoke_llm(deps, _CONSOLIDATE_SYS_OPT if opt else _CONSOLIDATE_SYS,
+        new_canon, u = _invoke_llm(deps, _consol_sys,
                                    f"现有规则集：\n{canonical or '（空）'}\n\n本轮新提炼规则：\n{candidate}",
                                    max_tokens=3072)
         _acc(u)
@@ -734,7 +771,7 @@ def run_ablation(doc_name, use_memory, deps=None, db_path=None, opt=False) -> di
         "coverage": coverage, "accuracy": accuracy, "self_review_pass": int(bool(passed)),
         "num_extracted": len(extracted), "num_gt": len(gt) if isinstance(gt, list) else 0,
         "extracted_json": json.dumps(extracted, ensure_ascii=False),
-        "notes": json.dumps({"variant": ("v2-opt" if opt else "v2"),
+        "notes": json.dumps({"variant": _vtag,
                              "precision": precision, "f1": f1,
                              "canonical_in_len": len(canonical), "canonical_out_len": len(new_canon),
                              "first_output_pass": bool(first_pass), "gate_retry": gate_retry,
@@ -744,3 +781,118 @@ def run_ablation(doc_name, use_memory, deps=None, db_path=None, opt=False) -> di
     }
     deps.runstore.insert_run(run, path=db_path)
     return run
+
+
+# =========================================================================== #
+# Reflection（Level-2 验证循环）：抽取→批评者(看原文+本次输出,不看GT)→带批评重抽同一篇
+# 用于回答：用户此前观察到"有效"的 reflection 模式，在我们 harness 里能否复现？
+# 与 run_ablation(mem) 的关键差异：反馈是"针对本次输出的具体整改意见"(而非抽象规则)、
+# 由外部批评者产生(而非自省)、立刻作用于同一篇重抽(而非存给未来)。
+# =========================================================================== #
+_CRITIC_SYS = (
+    "你是严格的抽取质检员。给你【原始技术文档】和【某次从中抽取的结构化结果】。"
+    "在**不知道标准答案**的前提下，仅对照原文找出这次抽取的问题："
+    "①漏抽——原文出现但结果里没有的指标/部件/类别（尤其无损检测RT/PT/UT、安装环境条件、"
+    "主要受压元件、焊接接头、材料分层等）；②拆分不当——同一条原文被过度拆成多条、或本应分开的被合并；"
+    "③字段错配——设备主体/设备部件/指标名称/指标特征/原文 明显对不上。"
+    "输出一份**具体、可操作**的整改清单（指名漏了哪些原文片段/类别、哪些条目该合并或拆分），"
+    "不要重写抽取结果本身。你看不到标准答案，只能对照原文判断。"
+)
+
+
+def run_reflection(doc_name, deps=None, db_path=None) -> dict:
+    """Level-2 验证循环单次运行：round1 单遍抽取 → 批评(无GT) → round2 带批评重抽同一篇。
+
+    两轮用同一评分器打分（GT 仅用于评分，绝不进 agent 上下文）。落库两条：refl_r1 / refl_r2，
+    共享 pair_id，便于成对比较 round2 相对 round1 的增量。
+    """
+    deps = _resolve_deps(deps)
+    if deps.corpus is None:
+        raise RuntimeError("corpus 模块缺失")
+    doc_text = deps.corpus.load_doc_text(doc_name)
+    try:
+        gt = deps.corpus.load_gt(doc_name)
+    except Exception:
+        gt = []
+    ext_sys = _v2_extract_system(deps, "")   # == nomem 基线抽取提示（无记忆注入）
+    pair_id = uuid4().hex
+
+    def _extract(user_text):
+        usage = {"inputTokens": 0, "outputTokens": 0, "totalTokens": 0}
+        text, u = _invoke_llm(deps, ext_sys, user_text, max_tokens=32768)
+        for k in usage:
+            usage[k] += u.get(k, 0)
+        extracted, rev = _parse_final(text)
+        first_pass = _passes_gate(extracted)
+        gate_retry = not first_pass
+        if gate_retry:
+            text2, u2 = _invoke_llm(deps, ext_sys,
+                                    user_text + "\n\n请只输出合法 JSON 数组 + __META__ 行。", max_tokens=32768)
+            for k in usage:
+                usage[k] += u2.get(k, 0)
+            e2, r2 = _parse_final(text2)
+            if _passes_gate(e2):
+                extracted, rev = e2, r2
+        return extracted, rev, usage, first_pass, gate_retry
+
+    def _score(extracted):
+        cov = acc = prec = f1 = None
+        ju_total = 0
+        if deps.scorer is not None and extracted:
+            box = {"t": 0}
+            def _judge(prompt):
+                jt, ju = _invoke_llm(deps, _JUDGE_SYSTEM, prompt, max_tokens=8192)
+                box["t"] += ju.get("totalTokens", 0)
+                return jt
+            try:
+                res = deps.scorer.score(extracted, gt, _judge)
+                cov, acc = res.get("coverage"), res.get("accuracy")
+                prec, f1 = res.get("precision"), res.get("f1")
+            except Exception:
+                pass
+            ju_total = box["t"]
+        return cov, acc, prec, f1, ju_total
+
+    def _persist(mode, extracted, rev, usage, cov, acc, prec, f1, ju_total, first_pass, gate_retry, extra):
+        run = {
+            "run_id": uuid4().hex, "ts": datetime.now(timezone.utc).isoformat(),
+            "doc_name": doc_name, "memory_mode": mode, "warm": 0, "revision_count": rev,
+            "elapsed_sec": 0.0, "input_tokens": usage["inputTokens"],
+            "output_tokens": usage["outputTokens"], "total_tokens": usage["totalTokens"],
+            "coverage": cov, "accuracy": acc, "self_review_pass": int(_passes_gate(extracted)),
+            "num_extracted": len(extracted), "num_gt": len(gt) if isinstance(gt, list) else 0,
+            "extracted_json": json.dumps(extracted, ensure_ascii=False),
+            "notes": json.dumps({"variant": "reflection", "pair_id": pair_id,
+                                 "precision": prec, "f1": f1, "judge_total_tokens": ju_total,
+                                 "first_output_pass": bool(first_pass), "gate_retry": gate_retry,
+                                 **extra}, ensure_ascii=False),
+        }
+        deps.runstore.insert_run(run, path=db_path)
+        return run
+
+    # ---- round 1：单遍抽取 ----
+    ex1, rev1, u1, fp1, gr1 = _extract(doc_text)
+    cov1, acc1, prec1, f1_1, jt1 = _score(ex1)
+    _persist("refl_r1", ex1, rev1, u1, cov1, acc1, prec1, f1_1, jt1, fp1, gr1, {})
+
+    # ---- 批评者：看原文 + round1 输出，不看 GT ----
+    critique, uc = _invoke_llm(
+        deps, _CRITIC_SYS,
+        f"【原始技术文档】\n{doc_text}\n\n【本次抽取结果】\n{json.dumps(ex1, ensure_ascii=False)}",
+        max_tokens=4096,
+    )
+
+    # ---- round 2：带批评重抽同一篇（唯一新增变量 = critique）----
+    r2_user = (f"{doc_text}\n\n【你上一轮的抽取结果】\n{json.dumps(ex1, ensure_ascii=False)}\n\n"
+               f"【质检整改意见（对照原文，未参考标准答案）】\n{critique}\n\n"
+               "请据此重新抽取：补上漏抽的类别/条目、修正不当的拆分与字段错配。只输出合法 JSON 数组 + __META__ 行。")
+    ex2, rev2, u2, fp2, gr2 = _extract(r2_user)
+    cov2, acc2, prec2, f2_2, jt2 = _score(ex2)
+    _persist("refl_r2", ex2, rev2, u2, cov2, acc2, prec2, f2_2, jt2, fp2, gr2,
+             {"critique_len": len(critique or ""), "critique": critique or ""})
+
+    return {
+        "pair_id": pair_id,
+        "r1": {"coverage": cov1, "precision": prec1, "f1": f1_1, "num_extracted": len(ex1)},
+        "r2": {"coverage": cov2, "precision": prec2, "f1": f2_2, "num_extracted": len(ex2)},
+    }

@@ -4,6 +4,10 @@
 # 含从机密文档抽取出的内容
 /runs.db
 /runs_v2.db
+/runs_v2_opt.db
+/runs_episodic.db
+/runs_reflection.db
+/runs_v2_opt2.db
 # 账号 ID + 真实资源 ARN
 /config.local.json
 
@@ -28,3 +32,4 @@ docs/e2e_overview.png
 docs/e2e_history.png
 docs/e2e_expC_lessons.png
 docs/e2e_expA_rounds_cov.png
+/runs_v2_hf.db
