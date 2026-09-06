@@ -77,7 +77,7 @@
   <div class="tag">AGENTCORE MEMORY · 诚实实验</div>
   <h1>记忆能让 AI Agent<br>越跑越好吗？</h1>
   <div class="sub">在工业技术文档抽取任务上，用单变量实验验证「长期记忆是否带来自学习」——并给出记忆使用的最佳实践。</div>
-  <div class="ans">能。就算没人干预，记忆也能靠对照原文的自我批评学到一些；但<b>真正的飞跃，需要回路里有一个 判定源</b>（判定对错/该抽什么的外部权威）。<br><b>记忆是好的载体，不是好的老师。</b></div>
+  <div class="ans">能。就算没人干预，记忆也能靠对照原文的自我批评学到一些；但<b>真正的飞跃，需要回路里有一个判定源</b>（判定对错/该抽什么的外部权威）。<br><b>记忆是好的载体，不是好的老师。</b></div>
   <div class="meta">复现自 AWS 博客《Self-learning evolvable agents … with AgentCore》 · us-west-2 · 场景：低温液氮储罐技术要求抽取</div>
 </section>
 
@@ -90,9 +90,9 @@
     <div class="cards c3" style="margin-bottom:16px">
       <div class="card"><div class="n">直觉</div><h4>记忆 = 自学习</h4><p>把过去经验记下、下次复用，agent 应该越跑越好。几乎所有人的默认假设。</p></div>
       <div class="card"><div class="n">现实</div><h4>没那么简单</h4><p>第一版「看起来」验证了直觉——但那是评分 bug 的假象。修正后增益消失。</p></div>
-      <div class="card" style="border-color:var(--gold);background:var(--goldbg)"><div class="n" style="color:var(--gold)">真相</div><h4>关键在存什么</h4><p>记忆能变好多少，取决于往里存什么；而能存到「该抽什么」这类关键反馈，取决于有没有 判定源。</p></div>
+      <div class="card" style="border-color:var(--gold);background:var(--goldbg)"><div class="n" style="color:var(--gold)">真相</div><h4>关键在存什么</h4><p>记忆能变好多少，取决于往里存什么；而能存到「该抽什么」这类关键反馈，取决于有没有判定源。</p></div>
     </div>
-    <div class="quote">主线：<b>记忆机制是好的</b>。没 判定源 时，靠对照原文的自我批评它也能救回一部分漏项（无标准答案也救回 4–10 条）；但只做抽象自省，<b>够不着「该抽什么」这类关键问题</b>。一旦存进 判定源 质量的反馈，同一套机制立刻<b>突飞猛进</b>（探针 1/7 → 7/7）。</div>
+    <div class="quote">主线：<b>记忆机制是好的</b>。没判定源时，靠对照原文的自我批评它也能救回一部分漏项（无标准答案也救回 4–10 条）；但只做抽象自省，<b>够不着「该抽什么」这类关键问题</b>。一旦存进判定源质量的反馈，同一套机制立刻<b>突飞猛进</b>（探针 1/7 → 7/7）。</div>
   </div>
   <div class="foot"><span>记忆是载体，不是老师</span><span>2 / 15</span></div>
 </section>
@@ -115,27 +115,27 @@
       <div class="card"><div class="n">指标①</div><h4>覆盖率(召回)</h4><p>抽出的覆盖了多少标准答案。</p></div>
       <div class="card"><div class="n">指标②</div><h4>精确率</h4><p>抽出的里多少对，惩罚乱抽/过度拆分。</p></div>
       <div class="card"><div class="n">指标③</div><h4>F1</h4><p>前两者调和平均，综合看。</p></div>
-      <div class="card" style="border-color:var(--accent)"><div class="n">诊断</div><h4>真召回失败</h4><p>某条标准答案 与<b>任何</b>抽取项零重叠 = 根本没抽出来。全篇关键。</p></div>
+      <div class="card" style="border-color:var(--accent)"><div class="n">诊断</div><h4>真召回失败</h4><p>某条标准答案与<b>任何</b>抽取项零重叠 = 根本没抽出来。全篇关键。</p></div>
     </div>
   </div>
   <div class="foot"><span>干净的对照，才能干净地回答</span><span>3 / 15</span></div>
 </section>
 
-<!-- 4 EXPERIMENT MAP / STORYLINE -->
+<!-- 4 ROADMAP -->
 <section class="slide" id="s4">
-  <div class="top"><span class="kicker">STORYLINE</span><span class="deck">整体设计 · 三个实验如何串成结论</span></div>
-  <h2>从「没效果」到「找到最佳实践」的推理链</h2>
-  <div class="lead">不是一次实验，而是环环相扣的四步——每步回答上一步逼出的新问题。</div>
-  <div class="body">
-    <div class="cards c2" style="grid-template-rows:auto auto;gap:13px">
-      <div class="card"><div class="n">第 0 步 · 诊断</div><h4>为什么记忆没用？</h4><p>错误分析发现：漏抽主体是<b>离散文字/流程类要求</b>，定量 schema 抓不住。→ 是任务定义问题，不是方法无效。</p></div>
-      <div class="card"><div class="n">实验 A · 提示词</div><h4>把教训写进提示词</h4><p>对比标准答案 得出教训 → 写进提示词。真召回失败 <b class="good-t">27→1</b>。<b>证明改得动</b>。但——用到了标准答案（判定源）。</p></div>
-      <div class="card" style="border-color:var(--goodbd);background:var(--goodbg)"><div class="n" style="color:var(--good)">实验 C · 反馈进记忆</div><h4>真实回路：反馈本来就有</h4><p>让<b>大模型对比标准答案 产出反馈 → 写进记忆</b> → 下次注入。探针 <b class="good-t">7/7</b>。记忆能捕获反馈。</p></div>
-      <div class="card" style="border-color:var(--badbd);background:var(--badbg)"><div class="n" style="color:var(--bad)">实验 B · 对照</div><h4>没反馈、只靠自省呢？</h4><p>让模型反思自己输出、无 判定源。探针 <b class="bad-t">1/7</b>。→ 坐实增益来自<b>反馈内容</b>，不是机制。</p></div>
+  <div class="top"><span class="kicker">ROADMAP</span><span class="deck">接下来怎么读</span></div>
+  <h2>我们分四步查下去</h2>
+  <div class="lead">有了「记忆开/关」这个单变量设置，下面每一步都由上一步的结果逼出来——先破后立：先弄清它为什么没用，再弄清怎么才有用。</div>
+  <div class="body" style="display:flex;flex-direction:column;justify-content:center">
+    <div class="cards c4" style="gap:12px">
+      <div class="card"><div class="n">第 1 步</div><h4>先验尺子</h4><p>第一版"看起来有效"——但真的吗？先怀疑度量本身。</p><p style="color:var(--faint);font-size:13.5px;margin-top:6px">→ 见「第一版骗了我们」</p></div>
+      <div class="card"><div class="n">第 2 步</div><h4>诊断漏了什么</h4><p>打平之后不急着下结论，先看漏抽有没有规律。</p><p style="color:var(--faint);font-size:13.5px;margin-top:6px">→ 见「为什么没用」</p></div>
+      <div class="card" style="border-color:var(--accent)"><div class="n" style="color:var(--accent)">第 3 步</div><h4>三个实验</h4><p>A 改提示词 · C 把反馈写进记忆 · B 对照。锁定因果。</p><p style="color:var(--faint);font-size:13.5px;margin-top:6px">→ 本文的核心</p></div>
+      <div class="card"><div class="n">第 4 步</div><h4>收束</h4><p>提炼「判定源」这个关键概念，给出记忆使用最佳实践。</p><p style="color:var(--faint);font-size:13.5px;margin-top:6px">→ 见「最佳实践」</p></div>
     </div>
-    <div class="quote" style="margin-top:13px;text-align:center">结论：<b>机制一直是好的，瓶颈是「记忆里存什么」，而那取决于回路里有没有 判定源。</b></div>
+    <div class="quote" style="margin-top:16px;text-align:center">全文只回答一个问题：<b>记忆能不能让 agent 越跑越好？答案藏在"记忆里到底存什么"里。</b></div>
   </div>
-  <div class="foot"><span>A/B/C 共用同一抽取器与评分，单变量可比</span><span>4 / 15</span></div>
+  <div class="foot"><span>三个实验共用同一抽取器与评分，唯一变量是记忆内容——单变量可比</span><span>4 / 15</span></div>
 </section>
 
 <!-- 5 PITFALL -->
@@ -163,7 +163,7 @@
 <section class="slide" id="s6">
   <div class="top"><span class="kicker">DIAGNOSIS</span><span class="deck">为什么没用</span></div>
   <h2>不下「记忆无效」的结论，先做错误分析</h2>
-  <div class="lead">把漏抽的标准答案 全捞出来分类：约 3/4 是「真召回失败」——根本没抽出来。这些漏项高度同质。</div>
+  <div class="lead">把漏抽的标准答案全捞出来分类：约 3/4 是「真召回失败」——根本没抽出来。这些漏项高度同质。</div>
   <div class="body">
     <div class="cards c2">
       <div class="card"><div class="n">漏项长什么样</div><h4>都不是「指标+数值」</h4>
@@ -175,7 +175,7 @@
     </div>
     <div class="quote" style="margin-top:14px">教训二：<b>「没效果」往往不是终点，而是一个还没做的错误分析</b>。不做归因，就会把「任务定义问题」误判成「方法无效」。</div>
   </div>
-  <div class="foot"><span>真召回失败 把「没抽出来」和「抽了对不齐」分开</span><span>6 / 15</span></div>
+  <div class="foot"><span>真召回失败把「没抽出来」和「抽了对不齐」分开</span><span>6 / 15</span></div>
 </section>
 
 <!-- 7 EXPERIMENT A -->
@@ -192,8 +192,8 @@
       </tbody>
     </table>
     <div class="card" style="padding:11px 15px;margin-bottom:12px;border-color:var(--accent)">
-      <div class="n" style="color:var(--accent)">为什么 真召回失败 崩到 1、覆盖率只 +0.07？——两把尺量两件事</div>
-      <p style="font-size:15px;margin-top:4px"><b>真召回失败 = 松尺</b>（有没有"沾边"抽到）→ 模型开始抽离散文字类，几乎每条标准答案 都沾边，近乎归零；<b>覆盖率 = 严尺</b>（裁判一对一干净对齐）→ 受"粒度对不齐 + 多抽拉低精确率(0.70)"限制。即已从<b>"整类视而不见"→"基本抽到、只是粒度没对齐"</b>；+0.07 低估了真实进步（残余多是粒度问题，不再是召回失败）。</p>
+      <div class="n" style="color:var(--accent)">为什么真召回失败崩到 1、覆盖率只 +0.07？——两把尺量两件事</div>
+      <p style="font-size:15px;margin-top:4px"><b>真召回失败 = 松尺</b>（有没有"沾边"抽到）→ 模型开始抽离散文字类，几乎每条标准答案都沾边，近乎归零；<b>覆盖率 = 严尺</b>（裁判一对一干净对齐）→ 受"粒度对不齐 + 多抽拉低精确率(0.70)"限制。即已从<b>"整类视而不见"→"基本抽到、只是粒度没对齐"</b>；+0.07 低估了真实进步（残余多是粒度问题，不再是召回失败）。</p>
     </div>
     <div class="cards c2">
       <div class="card" style="border-color:var(--goodbd);background:var(--goodbg)"><div class="n" style="color:var(--good)">结果</div><p style="margin-top:4px"><b>证明是任务定义问题，改得动</b>——不是方法无效。</p></div>
@@ -205,13 +205,13 @@
 
 <!-- 8 EXPERIMENT C -->
 <section class="slide" id="s8">
-  <div class="top"><span class="kicker">EXPERIMENT · C</span><span class="deck">反馈写进记忆 · 有 判定源</span></div>
-  <h2>大模型对比标准答案 产出反馈 → 写进记忆 —— 有效</h2>
-  <div class="lead">让大模型对比「抽取结果」与「标准答案」产出<b>可迁移反馈</b>（规则性指引，不照抄答案），写进记忆，基线提示词重抽。标准答案 只进检查器，不进抽取器。</div>
+  <div class="top"><span class="kicker">EXPERIMENT · C</span><span class="deck">反馈写进记忆 · 有判定源</span></div>
+  <h2>大模型对比标准答案产出反馈 → 写进记忆 —— 有效</h2>
+  <div class="lead">让大模型对比「抽取结果」与「标准答案」产出<b>可迁移反馈</b>（规则性指引，不照抄答案），写进记忆，基线提示词重抽。标准答案只进检查器，不进抽取器。</div>
   <div class="body">
     <div class="flow" style="margin:8px 0 16px">
       <div class="node">基线抽取</div><span class="arrow">→</span>
-      <div class="node" style="border-color:var(--accent);color:var(--accent)">大模型检查器<br>对比标准答案 产反馈</div><span class="arrow">→</span>
+      <div class="node" style="border-color:var(--accent);color:var(--accent)">大模型检查器<br>对比标准答案产反馈</div><span class="arrow">→</span>
       <div class="node mem">写进记忆</div><span class="arrow">→</span>
       <div class="node">注入·重抽</div><span class="arrow">→</span>
       <div class="node good-t" style="border-color:var(--goodbd);background:var(--goodbg);color:var(--good)">探针 7/7</div>
@@ -230,12 +230,12 @@
 
 <!-- 9 EXPERIMENT B + DECISIVE -->
 <section class="slide" id="s9">
-  <div class="top"><span class="kicker">EXPERIMENT · B</span><span class="deck">对照 · 无 判定源</span></div>
+  <div class="top"><span class="kicker">EXPERIMENT · B</span><span class="deck">对照 · 无判定源</span></div>
   <h2>换成「记忆自省」、没有反馈 —— 学不到</h2>
   <div class="lead">为确认增益来自反馈内容、而非「塞了更多字」：让模型反思自己的输出、蒸馏成规则（全程无标准答案、无反馈）。这正是我们最初的记忆设计。</div>
   <div class="body">
     <div class="cards c2" style="margin-bottom:14px">
-      <div class="card" style="border-color:var(--badbd);background:var(--badbg)"><span class="pill b">实验 B · 无 判定源</span>
+      <div class="card" style="border-color:var(--badbd);background:var(--badbg)"><span class="pill b">实验 B · 无判定源</span>
         <h4 style="margin-top:9px">探针纹丝不动，钉死 1 / 7</h4>
         <p>模型只看自己的产出，没有信号告诉它「离散文字类也算数」。蒸馏出的只是通用文风规则（"复合指标要拆分"），碰不到真问题，还因过度拆分帮倒忙。</p></div>
       <div class="card"><div class="n">决定性对照</div><h4>同机制，只变内容</h4>
@@ -245,21 +245,21 @@
         </tbody></table>
         <p style="margin-top:8px">注入路径完全相同（都是记忆），唯一差别是<b>内容质量</b>。</p></div>
     </div>
-    <div class="quote"><b>因果锁定：记忆的注入机制一直是好的。</b>之前记忆在这条教训上没起作用，是因为「无 判定源 自省」够不着「该抽什么」——它产出的是通用文风规则；换成 判定源 质量的反馈，记忆一把兑现全部增益。</div>
+    <div class="quote"><b>因果锁定：记忆的注入机制一直是好的。</b>之前记忆在这条教训上没起作用，是因为「无判定源自省」够不着「该抽什么」——它产出的是通用文风规则；换成判定源质量的反馈，记忆一把兑现全部增益。</div>
   </div>
-  <div class="foot"><span>B 与 C 唯一区别 = 记忆内容有无 判定源</span><span>9 / 15</span></div>
+  <div class="foot"><span>B 与 C 唯一区别 = 记忆内容有无判定源</span><span>9 / 15</span></div>
 </section>
 
 <!-- 10 判定源 -->
 <section class="slide" id="s10">
-  <div class="top"><span class="kicker">判定源</span><span class="deck">决定成败的那个概念</span></div>
+  <div class="top"><span class="kicker">KEY CONCEPT</span><span class="deck">决定成败的那个概念</span></div>
   <h2>什么是判定源，为什么是它说了算</h2>
   <div class="lead"><b>判定源 = 能告诉 agent「对不对 / 该抽什么」的外部权威。</b>核心：它提供的信息，<b>从输入本身推不出来</b>，必须外部给。</div>
   <div class="body">
     <div style="display:flex;gap:18px">
       <div style="flex:1.15">
         <table style="font-size:15px">
-          <thead><tr><th>判定源 形式</th><th>告诉 agent 什么</th></tr></thead>
+          <thead><tr><th>判定源形式</th><th>告诉 agent 什么</th></tr></thead>
           <tbody>
             <tr><td>标准答案</td><td>这篇「应该」抽出哪些</td></tr>
             <tr><td><b>人类反馈</b></td><td>「这类也要抽」/「这条错了」</td></tr>
@@ -270,13 +270,13 @@
         <p class="note">标准答案只是其中一种；后三种在真实系统里很常见。</p>
       </div>
       <div style="flex:1;display:flex;flex-direction:column;gap:12px">
-        <div class="card" style="border-color:var(--gold);background:var(--goldbg)"><div class="n" style="color:var(--gold)">任务规格类教训</div><p><b>该抽什么/粒度/什么算一条</b>——必须 判定源。从「文档+自己输出」推不出。本实验决定成败的就是这类。</p></div>
-        <div class="card"><div class="n">源覆盖/一致性类教训</div><p><b>漏了原文里的X/重复/格式错</b>——对照原文即可，无 判定源 也能学一点（天花板低）。</p></div>
+        <div class="card" style="border-color:var(--gold);background:var(--goldbg)"><div class="n" style="color:var(--gold)">任务规格类教训</div><p><b>该抽什么/粒度/什么算一条</b>——必须判定源。从「文档+自己输出」推不出。本实验决定成败的就是这类。</p></div>
+        <div class="card"><div class="n">源覆盖/一致性类教训</div><p><b>漏了原文里的X/重复/格式错</b>——对照原文即可，无判定源也能学一点（天花板低）。</p></div>
       </div>
     </div>
-    <div class="quote" style="margin-top:14px;text-align:center"><b>记忆不产生新知识，它只搬运。搬运什么，取决于回路里的 判定源。</b></div>
+    <div class="quote" style="margin-top:14px;text-align:center"><b>记忆不产生新知识，它只搬运。搬运什么，取决于回路里的判定源。</b></div>
   </div>
-  <div class="foot"><span>模型看「须与甲方确认」，推不出「这该成一条」——信号在 判定源 里，不在输入里</span><span>10 / 15</span></div>
+  <div class="foot"><span>模型看「须与甲方确认」，推不出「这该成一条」——信号在判定源里，不在输入里</span><span>10 / 15</span></div>
 </section>
 
 <!-- 11 MEMORY EXAMPLES -->
@@ -298,7 +298,7 @@
 <span class="ok">2.</span> 覆盖易漏类别：真空度/无损检测/
    环境/受压元件/阀门/管口/材料
 <span class="ok">3.</span> 粒度对齐：默认一原文一记录</pre>
-        <p style="margin-top:6px"><b>指名了漏抽的类别</b>——这是标准答案 才能给的信号。</p></div>
+        <p style="margin-top:6px"><b>指名了漏抽的类别</b>——这是标准答案才能给的信号。</p></div>
     </div>
     <div class="quote" style="font-size:15px"><b>Memory 类型</b>：用 AgentCore 自定义记忆当<b>事件存储</b>（<span class="mono">create_event</span> 写 / <span class="mono">list_events</span> 精确即时读，不走异步策略），存在固定分区 <span class="mono">canon-{actorId}</span>，注入时逐字拼进 system prompt。</div>
   </div>
@@ -307,43 +307,44 @@
 
 <!-- 12 PROMPTS -->
 <section class="slide" id="s12">
-  <div class="top"><span class="kicker">PROMPTS</span><span class="deck">关键提示词 · 差别就在有没有标准答案</span></div>
-  <h2>「让 LLM 产出记忆」的两个版本</h2>
-  <div class="lead">实验 B 与 C 都是让 LLM 产出记忆内容，唯一差别：C 的输入里有标准答案，B 没有。</div>
+  <div class="top"><span class="kicker">PROMPTS</span><span class="deck">关键提示词长什么样</span></div>
+  <h2>「教训」和「检查器」的真实提示词</h2>
+  <div class="lead">抽象说了半天，直接看真东西：写进提示词的那条教训（含真实示例），以及产出它的检查器。</div>
   <div class="body">
     <div class="cards c2">
-      <div class="card" style="border-color:var(--badbd)"><div class="n" style="color:var(--bad)">③ 自省提示词（实验B，无 判定源）</div>
-        <pre style="margin-top:8px"><span class="cm"># 反思</span>
-你是「抽取经验提炼器」。给你<span class="no">一次抽取结果</span>，
-总结可复用规则(≤10条,只讲规则不讲数值)。
-<span class="cm"># 合并</span>
-把「现有规则+本轮新规则」合并成一份
-规范规则集(去重,≤15条)。</pre>
-        <p style="margin-top:6px" class="bad-t">只看模型自己的输出，没有标准答案。</p></div>
-      <div class="card" style="border-color:var(--goodbd)"><div class="n" style="color:var(--good)">④ 检查器提示词（实验C，有 判定源）</div>
+      <div class="card" style="border-color:var(--gold)"><div class="n" style="color:var(--gold)">实验 A：写进提示词的「教训」(真实原文·节选)</div>
+        <pre style="margin-top:8px">非定量要求也要抽：定性/流程/待确认类，
+「要求类型」→指标名称、「要求内容」→指标特征。<span class="cm">
+示例（真实漏项）：</span>
+外观颜色须与甲方确认
+   → 名称=外观颜色确认；特征=须与甲方确认
+真空度测量报告
+   → 名称=真空度测量；特征=需测量并提供报告</pre>
+        <p style="margin-top:6px" class="em">用上一轮真实漏项当 few-shot，指哪打哪。</p></div>
+      <div class="card" style="border-color:var(--goodbd)"><div class="n" style="color:var(--good)">产出它的「检查器」提示词（实验C）</div>
         <pre style="margin-top:8px">你是抽取质检专家。给你【抽取结果】
 和<span class="ok">【标准答案】</span>。对比两者，产出
 可迁移改进反馈(≤10条)：
  ① 系统性漏抽的类别；② 粒度问题；
  ③ 规则性纠正指引。不要照抄答案。</pre>
-        <p style="margin-top:6px" class="good-t">输入里有标准答案(判定源) ← 唯一的关键差别。</p></div>
+        <p style="margin-top:6px" class="good-t">输入里有标准答案 ← 它才能指出"漏了哪类"。</p></div>
     </div>
-    <div class="quote" style="margin-top:12px">基线抽取提示词（两组共用）= <b>schema(设备/部件/指标名称/指标特征/原文) + 红线(忠实抽取·严格JSON·不臆造) + 内联自审</b>。实验 A 是把 ④ 得到的教训直接写进这个提示词。</div>
+    <div class="quote" style="margin-top:12px;font-size:15px"><b>三条提示词的关系</b>：① <b>基线抽取</b>=schema+红线+内联自审（两组共用）；② <b>实验A</b>=把左边这条教训写进①；③ <b>实验B 自省</b>=只看自己输出、<b>不给标准答案</b>→产出空洞规则。差别就在<b>有没有标准答案</b>。完整全文见 blog 附录 D。</div>
   </div>
-  <div class="foot"><span>完整提示词见 blog 附录 D</span><span>12 / 15</span></div>
+  <div class="foot"><span>教训 = 大模型对比标准答案得来（实验A/C），或模型自省得来（实验B，无效）</span><span>12 / 15</span></div>
 </section>
 
 <!-- 13 BEST PRACTICE -->
 <section class="slide" id="s13">
   <div class="top"><span class="kicker">BEST PRACTICE</span><span class="deck">记忆使用的最佳实践</span></div>
   <h2>怎么用记忆，才能真的越跑越好</h2>
-  <div class="lead">记忆负责「捕获并复用」反馈，反馈本身必须由 判定源 提供。落到工程上四条。</div>
+  <div class="lead">记忆负责「捕获并复用」反馈，反馈本身必须由判定源提供。落到工程上四条。</div>
   <div class="body">
     <div class="cards c2" style="grid-template-rows:1fr 1fr;height:100%">
-      <div class="card"><div class="n">01</div><h4>先确保回路里有 判定源</h4><p>没有「对错/目标」的外部信号，记忆再多也原地打转。判定源 不必是完整标准答案——<b>一次人类纠正、少量标注、带 rubric 的裁判</b>都行。博客 self-learning 有效正因它吃人类/下游反馈。</p></div>
+      <div class="card"><div class="n">01</div><h4>先确保回路里有判定源</h4><p>没有「对错/目标」的外部信号，记忆再多也原地打转。判定源不必是完整标准答案——<b>一次人类纠正、少量标注、带 rubric 的裁判</b>都行。博客 self-learning 有效正因它吃人类/下游反馈。</p></div>
       <div class="card"><div class="n">02</div><h4>存「具体批评」，别存「抽象规则」</h4><p>「你漏了真空度测量这一段」有用；「复合指标要拆分」空洞，还诱发过度拆分反噬。记忆要对照答案/原文，指名道姓。</p></div>
-      <div class="card"><div class="n">03</div><h4>判定源 可以只用一次</h4><p>用少量标准答案 做<b>一次</b>错误分析，把结论沉淀成可复用记忆，之后无标注地跑。<b>用少量监督撬动长期收益，最划算。</b></p></div>
-      <div class="card"><div class="n">04</div><h4>分清想学哪类教训</h4><p><b>任务规格类</b>必须 判定源；<b>源覆盖/一致性类</b>对照原文即可，无 判定源 也能学一点（天花板低）。</p></div>
+      <div class="card"><div class="n">03</div><h4>判定源可以只用一次</h4><p>用少量标准答案做<b>一次</b>错误分析，把结论沉淀成可复用记忆，之后无标注地跑。<b>用少量监督撬动长期收益，最划算。</b></p></div>
+      <div class="card"><div class="n">04</div><h4>分清想学哪类教训</h4><p><b>任务规格类</b>必须判定源；<b>源覆盖/一致性类</b>对照原文即可，无判定源也能学一点（天花板低）。</p></div>
     </div>
   </div>
   <div class="foot"><span>记忆是载体，不是老师</span><span>13 / 15</span></div>
@@ -353,21 +354,21 @@
 <section class="slide" id="s14">
   <div class="top"><span class="kicker">DATA</span><span class="deck">全量数据 · 同一把尺</span></div>
   <h2>四种回路放同一把尺</h2>
-  <div class="lead">看离散文字类探针这一列就够——它是任务规格类教训的探针：只有引入 判定源 才从 1/7 跳到 7/7。</div>
+  <div class="lead">看离散文字类探针这一列就够——它是任务规格类教训的探针：只有引入判定源才从 1/7 跳到 7/7。</div>
   <div class="body">
     <table>
       <thead><tr><th>回路</th><th>教训来源</th><th>教训放哪</th><th>覆盖率</th><th>F1</th><th>真召回失败</th><th>离散文字探针</th></tr></thead>
       <tbody>
         <tr><td>基线（无记忆）</td><td>—</td><td>—</td><td class="num">0.642</td><td>–</td><td class="num">27</td><td class="num">1/7</td></tr>
-        <tr class="hl-bad"><td>自省记忆</td><td>模型自省(无 判定源)</td><td>记忆</td><td class="num">0.561</td><td>–</td><td class="num">18*</td><td class="num bad-t">1/7</td></tr>
+        <tr class="hl-bad"><td>自省记忆</td><td>模型自省(无判定源)</td><td>记忆</td><td class="num">0.561</td><td>–</td><td class="num">18*</td><td class="num bad-t">1/7</td></tr>
         <tr><td>提示词优化</td><td>大模型对比标准答案</td><td>提示词</td><td class="num">0.715</td><td class="num">0.707</td><td class="num">1</td><td class="num">7/7</td></tr>
         <tr class="hl-good"><td><b>大模型反馈记忆·交互式</b></td><td>大模型对比标准答案</td><td><b>记忆</b></td><td class="num good-t">0.813</td><td class="num good-t">0.813</td><td class="num">2</td><td class="num good-t">7/7</td></tr>
         <tr class="hl-good"><td><b>大模型反馈记忆·自动脚本</b></td><td>大模型对比标准答案</td><td><b>记忆</b></td><td class="num good-t">0.789</td><td class="num good-t">0.833</td><td class="num">2</td><td class="num good-t">6/7</td></tr>
       </tbody>
     </table>
     <div class="cards c2" style="margin-top:14px">
-      <div class="card"><div class="n">读法</div><p style="font-size:14.5px">*自省记忆 真召回失败=18 低于基线 27 是<b>过度拆分噪声</b>（细条碰巧 token 重叠上）；探针 1/7 才是真相——真正该学的一条没学会。</p></div>
-      <div class="card" style="border-color:var(--accent)"><div class="n" style="color:var(--accent)">一句话</div><p style="font-size:14.5px">同一记忆机制，把内容从「无 判定源 自省」换成「有 判定源 反馈」，探针 <b>1/7 → 7/7</b>。</p></div>
+      <div class="card"><div class="n">读法</div><p style="font-size:14.5px">*自省记忆真召回失败=18 低于基线 27 是<b>过度拆分噪声</b>（细条碰巧 token 重叠上）；探针 1/7 才是真相——真正该学的一条没学会。</p></div>
+      <div class="card" style="border-color:var(--accent)"><div class="n" style="color:var(--accent)">一句话</div><p style="font-size:14.5px">同一记忆机制，把内容从「无判定源自省」换成「有判定源反馈」，探针 <b>1/7 → 7/7</b>。</p></div>
     </div>
   </div>
   <div class="foot"><span>数据/脚本见仓库 dashjim/agentcore-memory-loop（db 已 gitignore）</span><span>14 / 15</span></div>
@@ -381,13 +382,13 @@
   <div class="body">
     <div class="cards c2" style="margin-bottom:14px">
       <div class="card"><div class="n">能说</div>
-        <ul><li>记忆<b>注入机制</b>有效（实验 C 证明）</li><li>瓶颈是<b>记忆内容质量</b>，取决于 判定源</li><li>用标准答案/人类/大模型反馈都能兑现增益</li><li>提示词/schema 是漏抽的真因，改得动</li></ul></div>
+        <ul><li>记忆<b>注入机制</b>有效（实验 C 证明）</li><li>瓶颈是<b>记忆内容质量</b>，取决于判定源</li><li>用标准答案/人类/大模型反馈都能兑现增益</li><li>提示词/schema 是漏抽的真因，改得动</li></ul></div>
       <div class="card" style="border-color:var(--bd2)"><div class="n">不能说 / 局限</div>
         <ul><li><b>单文档、小样本、高方差</b>(覆盖率 0.55–0.81 跳动)→幅度不强断</li><li><b>泛化未测</b>(未做留出文档评估)</li><li>裁判未经人工校准；有测量口径背离</li><li>需多文档盲测+多seed+CI 严格验证</li></ul></div>
     </div>
-    <div class="quote" style="text-align:center;font-size:19px">记忆能让 agent 越跑越好——<b>但前提是回路里有 判定源 把「对错/该抽什么」喂进来。</b><br>记忆负责捕获并复用反馈；<b>它是好的载体，不是好的老师。</b></div>
+    <div class="quote" style="text-align:center;font-size:19px">记忆能让 agent 越跑越好——<b>但前提是回路里有判定源把「对错/该抽什么」喂进来。</b><br>记忆负责捕获并复用反馈；<b>它是好的载体，不是好的老师。</b></div>
   </div>
-  <div class="foot"><span>复现自 AWS 博客 · 对应 LangChain Level-4 爬山循环（需 判定源 指明上坡方向）</span><span>15 / 15</span></div>
+  <div class="foot"><span>复现自 AWS 博客 · 对应 LangChain Level-4 爬山循环（需判定源指明上坡方向）</span><span>15 / 15</span></div>
 </section>
 
 </div></div>
