@@ -178,7 +178,11 @@
         </ul>
         <p style="margin-top:8px"><b>都不是「指标+数值」，而是离散文字/流程/待确认类。</b>schema 面向定量指标，模型以为这些不该抽。</p></div>
     </div>
-    <div class="quote" style="margin-top:14px;font-size:15px">诊断探针「离散文字探针」：从这批漏项挑 7 个代表词（真空度测量/外观颜色/喷涂/油漆/地脚螺栓/与甲方确认/细化设计），看抽出几个。基线只 <b class="bad-t">1/7</b>、真召回失败 <b class="bad-t">27</b>。→ 步骤②的反馈就要专治这个。</div>
+    <table style="margin-top:13px;font-size:15px">
+      <thead><tr><th>基线实测（标准答案 123 条）</th><th>覆盖率</th><th>抽取条数</th><th>真召回失败</th><th>离散文字探针</th></tr></thead>
+      <tbody><tr><td>纯 schema+红线 提示词</td><td class="num">0.642</td><td class="num">83</td><td class="num bad-t">27</td><td class="num bad-t">1 / 7</td></tr></tbody>
+    </table>
+    <div class="note" style="margin-top:10px">离散文字探针 = 从上面漏项里挑的 7 个代表词（真空度测量/外观颜色/喷涂/油漆/地脚螺栓/与甲方确认/细化设计），看抽出几个。基线只 1/7、真召回失败 27。→ 步骤②的反馈就要专治这个。</div>
   </div>
   <div class="foot"><span>漏的不是模型能力，是它以为这些不该抽——这是"该抽什么"的规格问题</span><span>5 / 12</span></div>
 </section>
