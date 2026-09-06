@@ -101,21 +101,21 @@
 <section class="slide" id="s3">
   <div class="top"><span class="kicker">SETUP</span><span class="deck">我们在测什么</span></div>
   <h2>单变量实验：唯一变量 = 记忆开 / 关</h2>
-  <div class="lead">从 13 页中文工业文档抽 <span class="mono">设备主体·部件·指标名称·指标特征·原文</span>，对比人工答案（GT，123 条）。其余全一样，只切记忆。</div>
+  <div class="lead">从 13 页中文工业文档抽 <span class="mono">设备主体·部件·指标名称·指标特征·原文</span>，对比人工标注的标准答案（123 条）。其余全一样，只切记忆。</div>
   <div class="body">
     <div class="flow" style="margin:12px 0 18px">
       <div class="node">工业文档<br>(13页)</div><span class="arrow">→</span>
       <div class="node">Agent<br>(AgentCore Harness)</div><span class="arrow">→</span>
       <div class="node">结构化 JSON</div><span class="arrow">→</span>
-      <div class="node">LLM 裁判<br>对比 GT</div><span class="arrow">→</span>
+      <div class="node">LLM 裁判<br>对比标准答案</div><span class="arrow">→</span>
       <div class="node">覆盖率/精确率/F1</div>
     </div>
     <div style="text-align:center;margin-bottom:16px"><span class="node mem" style="display:inline-block">记忆　开 or 关　←　唯一变量</span></div>
     <div class="cards c4">
-      <div class="card"><div class="n">指标①</div><h4>覆盖率(召回)</h4><p>抽出的覆盖了多少 GT。</p></div>
+      <div class="card"><div class="n">指标①</div><h4>覆盖率(召回)</h4><p>抽出的覆盖了多少标准答案。</p></div>
       <div class="card"><div class="n">指标②</div><h4>精确率</h4><p>抽出的里多少对，惩罚乱抽/过度拆分。</p></div>
       <div class="card"><div class="n">指标③</div><h4>F1</h4><p>前两者调和平均，综合看。</p></div>
-      <div class="card" style="border-color:var(--accent)"><div class="n">诊断</div><h4>recall_fail</h4><p>某条 GT 与<b>任何</b>抽取项零重叠 = 根本没抽出来。全篇关键。</p></div>
+      <div class="card" style="border-color:var(--accent)"><div class="n">诊断</div><h4>recall_fail</h4><p>某条标准答案 与<b>任何</b>抽取项零重叠 = 根本没抽出来。全篇关键。</p></div>
     </div>
   </div>
   <div class="foot"><span>干净的对照，才能干净地回答</span><span>3 / 15</span></div>
@@ -129,8 +129,8 @@
   <div class="body">
     <div class="cards c2" style="grid-template-rows:auto auto;gap:13px">
       <div class="card"><div class="n">第 0 步 · 诊断</div><h4>为什么记忆没用？</h4><p>错误分析发现：漏抽主体是<b>散文/流程类要求</b>，定量 schema 抓不住。→ 是任务定义问题，不是方法无效。</p></div>
-      <div class="card"><div class="n">实验 A · 提示词</div><h4>把教训写进提示词</h4><p>对比 GT 得出教训 → 写进提示词。recall_fail <b class="good-t">27→1</b>。<b>证明改得动</b>。但——用到了 GT（oracle）。</p></div>
-      <div class="card" style="border-color:var(--goodbd);background:var(--goodbg)"><div class="n" style="color:var(--good)">实验 C · 反馈进记忆</div><h4>真实回路：反馈本来就有</h4><p>让<b>大模型对比 GT 产出反馈 → 写进记忆</b> → 下次注入。试金石 <b class="good-t">7/7</b>。记忆能捕获反馈。</p></div>
+      <div class="card"><div class="n">实验 A · 提示词</div><h4>把教训写进提示词</h4><p>对比标准答案 得出教训 → 写进提示词。recall_fail <b class="good-t">27→1</b>。<b>证明改得动</b>。但——用到了标准答案（oracle）。</p></div>
+      <div class="card" style="border-color:var(--goodbd);background:var(--goodbg)"><div class="n" style="color:var(--good)">实验 C · 反馈进记忆</div><h4>真实回路：反馈本来就有</h4><p>让<b>大模型对比标准答案 产出反馈 → 写进记忆</b> → 下次注入。试金石 <b class="good-t">7/7</b>。记忆能捕获反馈。</p></div>
       <div class="card" style="border-color:var(--badbd);background:var(--badbg)"><div class="n" style="color:var(--bad)">实验 B · 对照</div><h4>没反馈、只靠自省呢？</h4><p>让模型反思自己输出、无 oracle。试金石 <b class="bad-t">1/7</b>。→ 坐实增益来自<b>反馈内容</b>，不是机制。</p></div>
     </div>
     <div class="quote" style="margin-top:13px;text-align:center">结论：<b>机制一直是好的，瓶颈是「记忆里存什么」，而那取决于回路里有没有 oracle。</b></div>
@@ -147,8 +147,8 @@
     <div class="cards c2" style="margin-bottom:14px">
       <div class="card" style="border-color:var(--badbd);background:var(--badbg)">
         <div class="n" style="color:var(--bad)">问题一 · 评分 bug</div><h4>裁判会重复计分</h4>
-        <p>分块打分缺全局约束，<b>同一抽取项被重复算去匹配多条 GT</b>，系统性高估覆盖率。</p>
-        <p style="margin-top:8px">铁证：某次只抽 <b class="bad-t">91</b> 条，却报匹配 <b class="bad-t">94</b> 条 GT——<span class="mono">94&gt;91</span> 一对一<b>不可能</b>。</p></div>
+        <p>分块打分缺全局约束，<b>同一抽取项被重复算去匹配多条标准答案</b>，系统性高估覆盖率。</p>
+        <p style="margin-top:8px">铁证：某次只抽 <b class="bad-t">91</b> 条，却报匹配 <b class="bad-t">94</b> 条标准答案——<span class="mono">94&gt;91</span> 一对一<b>不可能</b>。</p></div>
       <div class="card" style="border-color:var(--badbd);background:var(--badbg)">
         <div class="n" style="color:var(--bad)">问题二 · 对比混淆</div><h4>比的不是同一个东西</h4>
         <p>那个「好」的记忆模式偷偷用了<b>更强的抽取器</b>，还<b>没冷启动</b>。</p>
@@ -163,7 +163,7 @@
 <section class="slide" id="s6">
   <div class="top"><span class="kicker">DIAGNOSIS</span><span class="deck">为什么没用</span></div>
   <h2>不下「记忆无效」的结论，先做错误分析</h2>
-  <div class="lead">把漏抽的 GT 全捞出来分类：约 3/4 是「真召回失败」——根本没抽出来。这些漏项高度同质。</div>
+  <div class="lead">把漏抽的标准答案 全捞出来分类：约 3/4 是「真召回失败」——根本没抽出来。这些漏项高度同质。</div>
   <div class="body">
     <div class="cards c2">
       <div class="card"><div class="n">漏项长什么样</div><h4>都不是「指标+数值」</h4>
@@ -181,7 +181,7 @@
 <!-- 7 EXPERIMENT A -->
 <section class="slide" id="s7">
   <div class="top"><span class="kicker">EXPERIMENT · A</span><span class="deck">把漏项当线索，改提示词</span></div>
-  <h2>教训写进提示词 —— 有效，但用到了 GT</h2>
+  <h2>教训写进提示词 —— 有效，但用到了标准答案</h2>
   <div class="lead">只显式加：非定量要求也要抽，「要求类型」放指标名称、「要求内容」放指标特征。</div>
   <div class="body">
     <table style="margin-bottom:10px">
@@ -193,11 +193,11 @@
     </table>
     <div class="card" style="padding:11px 15px;margin-bottom:12px;border-color:var(--accent)">
       <div class="n" style="color:var(--accent)">为什么 recall_fail 崩到 1、覆盖率只 +0.07？——两把尺量两件事</div>
-      <p style="font-size:15px;margin-top:4px"><b>recall_fail = 松尺</b>（有没有"沾边"抽到）→ 模型开始抽散文类，几乎每条 GT 都沾边，近乎归零；<b>覆盖率 = 严尺</b>（裁判一对一干净对齐）→ 受"粒度对不齐 + 多抽拉低精确率(0.70)"限制。即已从<b>"整类视而不见"→"基本抽到、只是粒度没对齐"</b>；+0.07 低估了真实进步（残余多是粒度问题，不再是召回失败）。</p>
+      <p style="font-size:15px;margin-top:4px"><b>recall_fail = 松尺</b>（有没有"沾边"抽到）→ 模型开始抽散文类，几乎每条标准答案 都沾边，近乎归零；<b>覆盖率 = 严尺</b>（裁判一对一干净对齐）→ 受"粒度对不齐 + 多抽拉低精确率(0.70)"限制。即已从<b>"整类视而不见"→"基本抽到、只是粒度没对齐"</b>；+0.07 低估了真实进步（残余多是粒度问题，不再是召回失败）。</p>
     </div>
     <div class="cards c2">
       <div class="card" style="border-color:var(--goodbd);background:var(--goodbg)"><div class="n" style="color:var(--good)">结果</div><p style="margin-top:4px"><b>证明是任务定义问题，改得动</b>——不是方法无效。</p></div>
-      <div class="card" style="border-color:var(--gold);background:var(--goldbg)"><div class="n" style="color:var(--gold)">真正该问的</div><p style="margin-top:4px">现实里反馈不缺（人类纠正 / 大模型对比 GT）。<b class="em">这种反馈被记忆捕获后，实际有效吗？</b></p></div>
+      <div class="card" style="border-color:var(--gold);background:var(--goldbg)"><div class="n" style="color:var(--gold)">真正该问的</div><p style="margin-top:4px">现实里反馈不缺（人类纠正 / 大模型对比标准答案）。<b class="em">这种反馈被记忆捕获后，实际有效吗？</b></p></div>
     </div>
   </div>
   <div class="foot"><span>散文类试金石 = 「任务规格类教训」的探针</span><span>7 / 15</span></div>
@@ -206,12 +206,12 @@
 <!-- 8 EXPERIMENT C -->
 <section class="slide" id="s8">
   <div class="top"><span class="kicker">EXPERIMENT · C</span><span class="deck">反馈写进记忆 · 有 oracle</span></div>
-  <h2>大模型对比 GT 产出反馈 → 写进记忆 —— 有效</h2>
-  <div class="lead">让大模型对比「抽取结果」与「标准答案」产出<b>可迁移反馈</b>（规则性指引，不照抄答案），写进记忆，基线提示词重抽。GT 只进检查器，不进抽取器。</div>
+  <h2>大模型对比标准答案 产出反馈 → 写进记忆 —— 有效</h2>
+  <div class="lead">让大模型对比「抽取结果」与「标准答案」产出<b>可迁移反馈</b>（规则性指引，不照抄答案），写进记忆，基线提示词重抽。标准答案 只进检查器，不进抽取器。</div>
   <div class="body">
     <div class="flow" style="margin:8px 0 16px">
       <div class="node">基线抽取</div><span class="arrow">→</span>
-      <div class="node" style="border-color:var(--accent);color:var(--accent)">大模型检查器<br>对比 GT 产反馈</div><span class="arrow">→</span>
+      <div class="node" style="border-color:var(--accent);color:var(--accent)">大模型检查器<br>对比标准答案 产反馈</div><span class="arrow">→</span>
       <div class="node mem">写进记忆</div><span class="arrow">→</span>
       <div class="node">注入·重抽</div><span class="arrow">→</span>
       <div class="node good-t" style="border-color:var(--goodbd);background:var(--goodbg);color:var(--good)">试金石 7/7</div>
@@ -232,7 +232,7 @@
 <section class="slide" id="s9">
   <div class="top"><span class="kicker">EXPERIMENT · B</span><span class="deck">对照 · 无 oracle</span></div>
   <h2>换成「记忆自省」、没有反馈 —— 学不到</h2>
-  <div class="lead">为确认增益来自反馈内容、而非「塞了更多字」：让模型反思自己的输出、蒸馏成规则（全程无 GT、无反馈）。这正是我们最初的记忆设计。</div>
+  <div class="lead">为确认增益来自反馈内容、而非「塞了更多字」：让模型反思自己的输出、蒸馏成规则（全程无标准答案、无反馈）。这正是我们最初的记忆设计。</div>
   <div class="body">
     <div class="cards c2" style="margin-bottom:14px">
       <div class="card" style="border-color:var(--badbd);background:var(--badbg)"><span class="pill b">实验 B · 无 oracle</span>
@@ -261,9 +261,9 @@
         <table style="font-size:15px">
           <thead><tr><th>oracle 形式</th><th>告诉 agent 什么</th></tr></thead>
           <tbody>
-            <tr><td>标准答案 (GT)</td><td>这篇「应该」抽出哪些</td></tr>
+            <tr><td>标准答案 (标准答案)</td><td>这篇「应该」抽出哪些</td></tr>
             <tr><td><b>人类反馈</b></td><td>「这类也要抽」/「这条错了」</td></tr>
-            <tr><td><b>大模型对比 GT/规范检查</b></td><td>按规范判对错、漏了哪类</td></tr>
+            <tr><td><b>大模型对比标准答案/规范检查</b></td><td>按规范判对错、漏了哪类</td></tr>
             <tr><td>下游验证</td><td>参数拿去用报错 → 抽错了</td></tr>
           </tbody>
         </table>
@@ -291,14 +291,14 @@
 <span class="no">6.</span> 复合指标拆分规则：按指标逐条拆分…
 <span class="no">9.</span> 阀门/仪表：规格与数量各一条…</pre>
         <p style="margin-top:8px">全是<b>通用文风/粒度规则</b>，没一条说「该抽散文类」——它不知道自己漏了这类。还诱发过度拆分。</p></div>
-      <div class="card" style="border-color:var(--goodbd);background:var(--goodbg)"><span class="pill g">实验C · 对比GT的反馈</span>
+      <div class="card" style="border-color:var(--goodbd);background:var(--goodbg)"><span class="pill g">实验C · 对比标准答案的反馈</span>
         <pre style="margin-top:8px"><span class="cm">【质检反馈·务必逐条应用】</span>
 <span class="ok">1.</span> 非定量要求也要抽：定性/流程/
    报告/待确认类→映射进字段
 <span class="ok">2.</span> 覆盖易漏类别：真空度/无损检测/
    环境/受压元件/阀门/管口/材料
 <span class="ok">3.</span> 粒度对齐：默认一原文一记录</pre>
-        <p style="margin-top:6px"><b>指名了漏抽的类别</b>——这是 GT 才能给的信号。</p></div>
+        <p style="margin-top:6px"><b>指名了漏抽的类别</b>——这是标准答案 才能给的信号。</p></div>
     </div>
     <div class="quote" style="font-size:15px"><b>Memory 类型</b>：用 AgentCore 自定义记忆当<b>事件存储</b>（<span class="mono">create_event</span> 写 / <span class="mono">list_events</span> 精确即时读，不走异步策略），存在固定分区 <span class="mono">canon-{actorId}</span>，注入时逐字拼进 system prompt。</div>
   </div>
@@ -307,7 +307,7 @@
 
 <!-- 12 PROMPTS -->
 <section class="slide" id="s12">
-  <div class="top"><span class="kicker">PROMPTS</span><span class="deck">关键提示词 · 差别就在有没有 GT</span></div>
+  <div class="top"><span class="kicker">PROMPTS</span><span class="deck">关键提示词 · 差别就在有没有标准答案</span></div>
   <h2>「让 LLM 产出记忆」的两个版本</h2>
   <div class="lead">实验 B 与 C 都是让 LLM 产出记忆内容，唯一差别：C 的输入里有标准答案，B 没有。</div>
   <div class="body">
@@ -322,7 +322,7 @@
         <p style="margin-top:6px" class="bad-t">只看模型自己的输出，没有标准答案。</p></div>
       <div class="card" style="border-color:var(--goodbd)"><div class="n" style="color:var(--good)">④ 检查器提示词（实验C，有 oracle）</div>
         <pre style="margin-top:8px">你是抽取质检专家。给你【抽取结果】
-和<span class="ok">【标准答案 GT】</span>。对比两者，产出
+和<span class="ok">【标准答案】</span>。对比两者，产出
 可迁移改进反馈(≤10条)：
  ① 系统性漏抽的类别；② 粒度问题；
  ③ 规则性纠正指引。不要照抄答案。</pre>
@@ -340,9 +340,9 @@
   <div class="lead">记忆负责「捕获并复用」反馈，反馈本身必须由 oracle 提供。落到工程上四条。</div>
   <div class="body">
     <div class="cards c2" style="grid-template-rows:1fr 1fr;height:100%">
-      <div class="card"><div class="n">01</div><h4>先确保回路里有 oracle</h4><p>没有「对错/目标」的外部信号，记忆再多也原地打转。oracle 不必是完整 GT——<b>一次人类纠正、少量标注、带 rubric 的裁判</b>都行。博客 self-learning 有效正因它吃人类/下游反馈。</p></div>
+      <div class="card"><div class="n">01</div><h4>先确保回路里有 oracle</h4><p>没有「对错/目标」的外部信号，记忆再多也原地打转。oracle 不必是完整标准答案——<b>一次人类纠正、少量标注、带 rubric 的裁判</b>都行。博客 self-learning 有效正因它吃人类/下游反馈。</p></div>
       <div class="card"><div class="n">02</div><h4>存「具体批评」，别存「抽象规则」</h4><p>「你漏了真空度测量这一段」有用；「复合指标要拆分」空洞，还诱发过度拆分反噬。记忆要对照答案/原文，指名道姓。</p></div>
-      <div class="card"><div class="n">03</div><h4>oracle 可以只用一次</h4><p>用少量 GT 做<b>一次</b>错误分析，把结论沉淀成可复用记忆，之后无标注地跑。<b>用少量监督撬动长期收益，最划算。</b></p></div>
+      <div class="card"><div class="n">03</div><h4>oracle 可以只用一次</h4><p>用少量标准答案 做<b>一次</b>错误分析，把结论沉淀成可复用记忆，之后无标注地跑。<b>用少量监督撬动长期收益，最划算。</b></p></div>
       <div class="card"><div class="n">04</div><h4>分清想学哪类教训</h4><p><b>任务规格类</b>必须 oracle；<b>源覆盖/一致性类</b>对照原文即可，无 oracle 也能学一点（天花板低）。</p></div>
     </div>
   </div>
@@ -360,9 +360,9 @@
       <tbody>
         <tr><td>基线（无记忆）</td><td>—</td><td>—</td><td class="num">0.642</td><td>–</td><td class="num">27</td><td class="num">1/7</td></tr>
         <tr class="hl-bad"><td>自省记忆</td><td>模型自省(无 oracle)</td><td>记忆</td><td class="num">0.561</td><td>–</td><td class="num">18*</td><td class="num bad-t">1/7</td></tr>
-        <tr><td>提示词优化</td><td>大模型对比 GT</td><td>提示词</td><td class="num">0.715</td><td class="num">0.707</td><td class="num">1</td><td class="num">7/7</td></tr>
-        <tr class="hl-good"><td><b>大模型反馈记忆·交互式</b></td><td>大模型对比 GT</td><td><b>记忆</b></td><td class="num good-t">0.813</td><td class="num good-t">0.813</td><td class="num">2</td><td class="num good-t">7/7</td></tr>
-        <tr class="hl-good"><td><b>大模型反馈记忆·自动脚本</b></td><td>大模型对比 GT</td><td><b>记忆</b></td><td class="num good-t">0.789</td><td class="num good-t">0.833</td><td class="num">2</td><td class="num good-t">6/7</td></tr>
+        <tr><td>提示词优化</td><td>大模型对比标准答案</td><td>提示词</td><td class="num">0.715</td><td class="num">0.707</td><td class="num">1</td><td class="num">7/7</td></tr>
+        <tr class="hl-good"><td><b>大模型反馈记忆·交互式</b></td><td>大模型对比标准答案</td><td><b>记忆</b></td><td class="num good-t">0.813</td><td class="num good-t">0.813</td><td class="num">2</td><td class="num good-t">7/7</td></tr>
+        <tr class="hl-good"><td><b>大模型反馈记忆·自动脚本</b></td><td>大模型对比标准答案</td><td><b>记忆</b></td><td class="num good-t">0.789</td><td class="num good-t">0.833</td><td class="num">2</td><td class="num good-t">6/7</td></tr>
       </tbody>
     </table>
     <div class="cards c2" style="margin-top:14px">
@@ -381,7 +381,7 @@
   <div class="body">
     <div class="cards c2" style="margin-bottom:14px">
       <div class="card"><div class="n">能说</div>
-        <ul><li>记忆<b>注入机制</b>有效（实验 C 证明）</li><li>瓶颈是<b>记忆内容质量</b>，取决于 oracle</li><li>用 GT/人类/大模型反馈都能兑现增益</li><li>提示词/schema 是漏抽的真因，改得动</li></ul></div>
+        <ul><li>记忆<b>注入机制</b>有效（实验 C 证明）</li><li>瓶颈是<b>记忆内容质量</b>，取决于 oracle</li><li>用标准答案/人类/大模型反馈都能兑现增益</li><li>提示词/schema 是漏抽的真因，改得动</li></ul></div>
       <div class="card" style="border-color:var(--bd2)"><div class="n">不能说 / 局限</div>
         <ul><li><b>单文档、小样本、高方差</b>(覆盖率 0.55–0.81 跳动)→幅度不强断</li><li><b>泛化未测</b>(未做留出文档评估)</li><li>裁判未经人工校准；有测量口径背离</li><li>需多文档盲测+多seed+CI 严格验证</li></ul></div>
     </div>
