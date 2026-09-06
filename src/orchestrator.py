@@ -596,6 +596,24 @@ _CONSOLIDATE_SYS = (
     "去重、合并同类项、保持每条可操作、总数 ≤15 条、不要堆叠版本或近重复项。只输出合并后的最终规则集（编号列表）。"
 )
 
+# ---- opt 变体（据 §3.4 误差分析：补易漏类别 + 抑制过度拆分；不覆盖上面 V2 原版）----
+_OPT_EXTRACT_ADDON = (
+    "\n## 本轮强化要求（务必遵守）\n"
+    "1. **覆盖常被漏抽的类别**：无损检测(RT/PT/UT 的比例/合格级别/标准编号)、"
+    "安装环境条件(温度/风速/风压/雪压/地震)、主要受压元件、焊接接头——逐条抽取，勿遗漏。\n"
+    "2. **粒度对齐 GT**：默认**一条原文=一条记录**；仅当一句原文确含多个**相互独立**的指标时才拆分；"
+    "**严禁把同一句过度拆成大量细条**（过度拆分会降低精确率与覆盖率）。"
+)
+_REFLECT_SYS_OPT = (
+    "你是「抽取经验提炼器」。总结**可复用于同类文档**的抽取规则（≤10 条、可操作、只讲规则不讲具体值）。"
+    "规则要**帮助覆盖易漏类别（无损检测/安装环境/主要受压元件/焊接）**，并**控制拆分粒度（默认一原文一记录、勿鼓励过度拆分）**。只输出规则要点。"
+)
+_CONSOLIDATE_SYS_OPT = (
+    "你是「规则库维护器」。合并「现有规则集」与「本轮新提炼规则」成**一份规范规则集**（去重、≤15 条、可操作）。"
+    "**要点**：兼顾①覆盖易漏类别（无损检测/安装环境/受压元件/焊接）②粒度适中——"
+    "若已有规则过度强调'拆分/独立成条'，改写为'粒度对齐 GT、默认一原文一记录'。只输出最终规则集（编号列表）。"
+)
+
 
 def _v2_extract_system(deps, canonical: str) -> str:
     """V2 抽取系统提示：schema+红线（取自 system-prompt.md 的"工作方式"之前）+ 内联反思 + (可选)注入已积累规则。"""
@@ -633,11 +651,12 @@ def _invoke_llm(deps, system_text, user_text, max_tokens=32768):
         raise
 
 
-def run_ablation(doc_name, use_memory, deps=None, db_path=None) -> dict:
+def run_ablation(doc_name, use_memory, deps=None, db_path=None, opt=False) -> dict:
     """V2 单变量消融：唯一变量=use_memory。其余（harness/抽取提示/单次invoke/模型）全相同。
 
     use_memory=True：抽取前注入 canonical 规则集；抽取后 反思→consolidation→更新 canonical。
     use_memory=False：纯抽取基线。
+    opt=True：用优化后的提示词（补易漏类别 + 抑制过度拆分 + 优化的 reflect/consolidate），用于优化验证。
     """
     deps = _resolve_deps(deps)
     if deps.corpus is None:
@@ -658,15 +677,16 @@ def run_ablation(doc_name, use_memory, deps=None, db_path=None) -> dict:
     if use_memory:
         canonical = memory_tools.read_canonical(mem_id, config.ACTOR_ID, client=deps.memory_client)
 
+    ext_sys = _v2_extract_system(deps, canonical) + (_OPT_EXTRACT_ADDON if opt else "")
     t0 = time.monotonic()
-    text, u = _invoke_llm(deps, _v2_extract_system(deps, canonical), doc_text, max_tokens=32768)
+    text, u = _invoke_llm(deps, ext_sys, doc_text, max_tokens=32768)
     _acc(u)
     extracted, revision_count = _parse_final(text)
     first_pass = _passes_gate(extracted)   # 首次模型输出是否合规(与门禁后区分)
     gate_retry = False
     if not first_pass:  # 兜底补一次
         gate_retry = True
-        text2, u2 = _invoke_llm(deps, _v2_extract_system(deps, canonical),
+        text2, u2 = _invoke_llm(deps, ext_sys,
                                 doc_text + "\n\n请只输出合法 JSON 数组 + __META__ 行。", max_tokens=32768)
         _acc(u2)
         e2, r2 = _parse_final(text2)
@@ -676,7 +696,7 @@ def run_ablation(doc_name, use_memory, deps=None, db_path=None) -> dict:
     passed = _passes_gate(extracted)
 
     # 评分：单列 judge token（review 要求：extraction-path 与 judge 成本分开计）
-    coverage = accuracy = None
+    coverage = accuracy = precision = f1 = None
     judge_usage = {"inputTokens": 0, "outputTokens": 0, "totalTokens": 0}
     if deps.scorer is not None:
         def _judge(prompt):
@@ -687,16 +707,17 @@ def run_ablation(doc_name, use_memory, deps=None, db_path=None) -> dict:
         try:
             res = deps.scorer.score(extracted, gt, _judge)
             coverage, accuracy = res.get("coverage"), res.get("accuracy")
+            precision, f1 = res.get("precision"), res.get("f1")
         except Exception:
             pass
 
     # 记忆沉淀：反思本轮 → 与现有 canonical 合并（consolidation）
     candidate = new_canon = ""
     if use_memory and extracted:
-        candidate, u = _invoke_llm(deps, _REFLECT_SYS,
+        candidate, u = _invoke_llm(deps, _REFLECT_SYS_OPT if opt else _REFLECT_SYS,
                                    json.dumps(extracted, ensure_ascii=False), max_tokens=2048)
         _acc(u)
-        new_canon, u = _invoke_llm(deps, _CONSOLIDATE_SYS,
+        new_canon, u = _invoke_llm(deps, _CONSOLIDATE_SYS_OPT if opt else _CONSOLIDATE_SYS,
                                    f"现有规则集：\n{canonical or '（空）'}\n\n本轮新提炼规则：\n{candidate}",
                                    max_tokens=3072)
         _acc(u)
@@ -713,8 +734,9 @@ def run_ablation(doc_name, use_memory, deps=None, db_path=None) -> dict:
         "coverage": coverage, "accuracy": accuracy, "self_review_pass": int(bool(passed)),
         "num_extracted": len(extracted), "num_gt": len(gt) if isinstance(gt, list) else 0,
         "extracted_json": json.dumps(extracted, ensure_ascii=False),
-        "notes": json.dumps({"variant": "v2", "canonical_in_len": len(canonical),
-                             "canonical_out_len": len(new_canon),
+        "notes": json.dumps({"variant": ("v2-opt" if opt else "v2"),
+                             "precision": precision, "f1": f1,
+                             "canonical_in_len": len(canonical), "canonical_out_len": len(new_canon),
                              "first_output_pass": bool(first_pass), "gate_retry": gate_retry,
                              "judge_total_tokens": judge_usage["totalTokens"],
                              "extraction_path_tokens": usage["totalTokens"]},
