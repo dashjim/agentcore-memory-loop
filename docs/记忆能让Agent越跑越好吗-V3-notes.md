@@ -104,9 +104,11 @@ Memory 不应该简单保存上一次抽取出的所有记录。
 
 **过渡：** 基于这个判断，我们重新设计了 Self-review 流程。
 
-## Slide 8｜新设计：两阶段结构化 Self-review
+## Slide 8｜Harness Agent：两阶段结构化 Self-review
 
-阶段一要求模型先在内部形成草稿，但不输出草稿，只输出一个结构化的 self_review。
+这一页的执行主体是 Harness Agent，不是 Memory System。
+
+阶段一由 Harness Agent 先在内部形成草稿，但不输出草稿，只输出一个结构化的 self_review。
 
 self_review 固定检查五项：
 
@@ -116,19 +118,23 @@ self_review 固定检查五项：
 - granularity；
 - next_actions。
 
-阶段二重新读取原文和 self_review，逐项执行 next_actions，再生成最终五字段 JSON。
+阶段二仍由同一个 Harness Agent 重新读取原文和 self_review，逐项执行 next_actions，再生成最终五字段 JSON。
 
-关键变化是：Review 不再只是模型内部一句“我检查过了”，而是 session 中真实存在、可观察、可执行、可以被 AgentCore Memory 提炼的 Artifact。
+关键变化是：Harness Agent 的 Review 不再只是模型内部一句“我检查过了”，而是 session 中真实存在、可观察、可执行、随后可以被 AgentCore Memory System 提炼的 Artifact。
 
 这里不要求模型暴露完整思维过程，只要求它输出结构化检查结果和修订动作。
 
 **过渡：** 接下来看看 AgentCore 如何把这一整段执行轨迹转成 Memory。
 
-## Slide 9｜AgentCore 如何形成托管 Memory
+## Slide 9｜AgentCore Memory System：用 EPISODIC 策略提炼轨迹
 
-AgentCore EPISODIC Memory 处理的是完整 session，而不是某一句最终输出。
+这一页的执行主体是 AgentCore Memory System。使用的策略类型是 AgentCore Memory 内置的 `EPISODIC` strategy。
 
-它首先分析 session 中的用户输入、Assistant 输出和工具事件，然后合成为一条 episode。随后，它可以跨 episode 提炼 actor-level reflection。
+Harness Agent 先产生原文、self_review、最终 JSON 等 session events。Memory System 随后异步执行：
+
+1. Episode Extraction：逐 turn 分析行为与结果；
+2. Consolidation：形成 session-level episode；
+3. Reflection：形成 actor-level 可复用策略。
 
 在本次源任务中，session 包含：
 
@@ -137,17 +143,19 @@ AgentCore EPISODIC Memory 处理的是完整 session，而不是某一句最终�
 - 根据 next_actions 修订后的最终 JSON；
 - 明确的任务结束信号。
 
-最终实际生成了一条 session-level episode 和两条 actor-level reflection。
+最终实际生成了一条 session-level episode 和两条 actor-level reflection。Episode namespace 为 `/episodes/{actorId}/{sessionId}`，reflection namespace 为 `/episodes/{actorId}`。
 
 这里需要注意：提炼是异步的，不保证每个短 session 都一定形成 Memory。
 
 **过渡：** 下一页直接展示托管策略实际生成的内容。
 
-## Slide 10｜实际生成的 Memory
+## Slide 10｜AgentCore Memory System 实际生成的 Records
 
-左侧是 episode 中的 reflection。它总结的是这一次任务的经验：两阶段流程降低了复杂文档的一次性遗漏风险，OCR、章节跳号、重复表格和图片限制应该显式处理。
+这一页所有内容的生成主体都是 AgentCore Memory System 的内置 EPISODIC strategy，不是 Harness Agent 手工写入的规则。
 
-中间和右侧是 actor-level reflection，它们抽象成了更可复用的方法：
+左侧是 Consolidation 生成的 session-level episode 中的 reflection。它总结的是这一次任务的经验：两阶段流程降低了复杂文档的一次性遗漏风险，OCR、章节跳号、重复表格和图片限制应该显式处理。
+
+中间和右侧是 EPISODIC Reflection 阶段生成的 actor-level reflection，它们抽象成了更可复用的方法：
 
 - 先检查 coverage、omissions、format 和 granularity；
 - 再系统执行 next_actions；
@@ -160,9 +168,9 @@ Episode 回答“这一次任务发生了什么”，actor reflection 回答“�
 
 **过渡：** 有了这些 Memory，下一步是在一份全新文档上做 Memory 开关对照。
 
-## Slide 11｜留出文档实验：目标端只改变 Memory 开关
+## Slide 11｜Harness Agent 留出实验：目标端只改变 Memory 开关
 
-源文档是 13 页液氮罐技术要求，目标文档是一页电机图纸。两个任务使用不同的设备和文档格式，目标调用使用全新 runtime session。
+目标抽取的执行主体是 Harness Agent。源文档是 13 页液氮罐技术要求，目标文档是一页电机图纸。两个任务使用不同的设备和文档格式，目标调用使用全新 runtime session。
 
 两组目标调用保持一致：
 
@@ -174,15 +182,18 @@ Episode 回答“这一次任务发生了什么”，actor reflection 回答“�
 - `skills=[]`；
 - `tools=[]`。
 
-唯一变量是 Harness 是否绑定 AgentCore Memory。
+唯一变量是 Memory System 是否参与目标调用：
+
+- Memory 组：Harness 绑定 AgentCore Memory，自动检索并注入 EPISODIC records；
+- No Memory 组：Harness 的 Memory 配置为 disabled。
 
 目标端没有接收源文档答案，只会由 Harness 自动召回 source actor 的托管 Memory。
 
 **过渡：** 下一页看两组实际输出关注点发生了什么变化。
 
-## Slide 12｜同一份图纸，抽取关注点发生变化
+## Slide 12｜Harness Agent 输出：Memory 注入后关注点发生变化
 
-两组都能抽取型号、额定功率、技术要求等明显信息。
+两组结果都由 Harness Agent 生成。左侧 Memory 组在调用前接收了 Memory System 自动注入的 records；右侧 No Memory 组没有任何持久记忆上下文。
 
 Memory 组进一步把两张 BOM 系统展开。例如：
 
@@ -204,11 +215,13 @@ No Memory 组主要关注标题栏和技术要求，只零散抽出了少量数�
 
 **过渡：** 现在可以统一解释为什么前后两种自省方式表现不同。
 
-## Slide 13｜为什么两种自省得到不同结果
+## Slide 13｜Harness Agent 的两种 Review，为何产生不同 Memory
 
-抽象自省只看到模型输出，生成的是通用拆分和格式规则，因此作用有限，还可能造成过度拆分。
+两种 Review 都由 Agent/LLM 执行，但 Memory 的形成主体不同。
 
-结构化 Self-review 同时看到原文和内部草稿，还有固定检查维度，因此能发现漏表、漏段、重复和冲突。
+抽象自省只看到模型输出，应用侧再调用 LLM 合并规则，生成的是通用拆分和格式规则，因此作用有限，还可能造成过度拆分。
+
+结构化 Self-review 由 Harness Agent 同时查看原文和内部草稿；完整 session 随后由 AgentCore Memory System 的 EPISODIC strategy 提炼，因此能形成覆盖、遗漏、表格和冲突等可复用经验。
 
 它们并不是同一种学习信号，所以结果不同并不矛盾。
 
@@ -221,19 +234,19 @@ No Memory 组主要关注标题栏和技术要求，只零散抽出了少量数�
 
 ## Slide 14｜结构化数据抽取的 Memory 最佳实践
 
-第一，Review 必须看原文，不能只看输出做抽象总结。
+第一，Harness Agent 的 Review 必须看原文，不能只看输出做抽象总结。
 
-第二，Review 应输出结构化 Artifact，固定检查覆盖、遗漏、格式和粒度。
+第二，Harness Agent 应输出结构化 Artifact，固定检查覆盖、遗漏、格式和粒度。
 
 第三，建议必须可执行，形成明确的 next_actions。
 
 第四，区分源覆盖问题和任务边界问题，不要让 Self-review 承担它无法完成的业务判断。
 
-第五，Memory 保存方法，不保存历史答案。
+第五，Memory 内容应保存方法，不保存历史答案。
 
-第六，区分 episode 与 actor reflection：前者描述一次任务，后者沉淀跨任务方法。
+第六，Memory System 使用 EPISODIC strategy 时，要区分 episode 与 actor reflection：前者描述一次任务，后者沉淀跨任务方法。
 
-第七，控制召回数量、清理噪声，避免长 episode 撑爆上下文。
+第七，在 Harness Memory 配置中控制召回数量、清理噪声，避免长 episode 撑爆上下文。
 
 第八，对结果进行人工校准，分别检查忠实性、完整性、粒度和过度抽取。
 
