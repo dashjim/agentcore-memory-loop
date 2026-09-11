@@ -9,7 +9,7 @@ EPISODIC Memory 提炼后，是否会影响下一份文档的抽取行为。
 - Agent 采用两阶段流程：
   1. 内部形成草稿，只输出结构化 `self_review`；
   2. 根据 `self_review.next_actions` 修订并输出最终 JSON。
-- 当时的 Memory 快照包含：
+- 本次源任务完成后，AgentCore EPISODIC Memory 实际生成：
   - 1 条 session-level episode；
   - 2 条 actor-level reflection。
 - source actor：`ep-review-1789102186`。
