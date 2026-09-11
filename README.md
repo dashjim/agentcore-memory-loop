@@ -7,6 +7,7 @@
 
 > **📖 最终综合版（先读这篇）**：[`docs/记忆能让Agent越跑越好吗.md`](docs/记忆能让Agent越跑越好吗.md) —— 面向首次读者的 blog，综合 V1/V2，围绕核心结论组织：**记忆能让 agent 越跑越好，但前提是回路里有 oracle；记忆是好的载体，不是好的老师。**
 > 技术报告 V2（单变量消融细节 + 误差分析 + 优化验证）：[`docs/技术报告-memory-loop-v2.md`](docs/技术报告-memory-loop-v2.md)。
+> 技术报告 V3（显式 self-review 经 EPISODIC Memory 跨任务复用）：[`docs/技术报告-memory-loop-v3.md`](docs/技术报告-memory-loop-v3.md)。
 > 技术报告 V1（AgentCore Memory 原语/namespace/EPISODIC 官方提示词等基础，含被推翻的旧结论，仅供参考）：[`docs/技术报告-memory-loop.md`](docs/技术报告-memory-loop.md)。
 > 本文件（README）讲清代码在哪、每块逻辑、每个实验怎么做。
 

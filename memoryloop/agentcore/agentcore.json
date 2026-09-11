@@ -53,6 +53,14 @@
     {
       "name": "extractor_ep",
       "path": "app/extractor_ep"
+    },
+    {
+      "name": "extractor_ep_review",
+      "path": "app/extractor_ep_review"
+    },
+    {
+      "name": "extractor_ep_review_nomem",
+      "path": "app/extractor_ep_review_nomem"
     }
   ],
   "datasets": [],
