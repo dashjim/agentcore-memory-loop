@@ -112,6 +112,28 @@ function callout(s, text, y, color = C.bblue) {
     fontSize: 16.5, bold: true, color, align: "center", valign: "middle", margin: 0,
   });
 }
+function sectionSlide(n, experiment, titleText, question, bridge, color) {
+  const slide = p.addSlide();
+  base(slide, `EXPERIMENT ${experiment}`, n);
+  slide.addText(`0${experiment}`, {
+    x: LEFT, y: 1.22, w: 2.25, h: 1.35, fontFace: FH, fontSize: 72,
+    bold: true, color, margin: 0, valign: "middle",
+  });
+  slide.addText(titleText, {
+    x: LEFT + 2.55, y: 1.3, w: 9.3, h: 0.82, fontFace: FH, fontSize: 34,
+    bold: true, color: C.white, margin: 0,
+  });
+  slide.addText(question, {
+    x: LEFT + 2.58, y: 2.25, w: 9.0, h: 0.72, fontFace: FB, fontSize: 18,
+    color: C.body, margin: 0,
+  });
+  rect(slide, LEFT, 3.42, MW, 1.65, C.bg2, color);
+  slide.addText(bridge, {
+    x: LEFT + 0.45, y: 3.42, w: MW - 0.9, h: 1.65, fontFace: FB,
+    fontSize: 20, bold: true, color, align: "center", valign: "middle", margin: 0,
+  });
+  return slide;
+}
 
 let s;
 
@@ -184,16 +206,26 @@ box(s, LEFT + 4.17, 4.1, 3.75, 1.55, "应该检查什么", "", "覆盖、遗漏�
 box(s, LEFT + 8.34, 4.1, 3.76, 1.55, "下次怎么做", "", "先扫章节与表格，再按 next_actions 修订", { labelColor: C.green });
 callout(s, "Memory 的价值：复用 Review 得到的方法，而不是复读历史结果。", 5.98);
 
-// 4. Learning signals
-s = p.addSlide(); base(s, "LEARNING SIGNALS", 4);
-title(s, "三种 Memory 学习信号", "同样叫“反思”，输入信息不同，能学到的东西完全不同。");
-box(s, LEFT, 1.95, 3.75, 3.7, "方式 1", "抽象自省", "Review 输入：只有模型输出\n\n能学到：\n· 格式规则\n· 通用拆分方式\n· 字段完整性\n\n盲点：不知道整段或整表被漏掉", { fill: C.bad, labelColor: C.orange, fontSize: 13.5 });
-box(s, LEFT + 4.17, 1.95, 3.75, 3.7, "方式 2", "结构化 Self-review", "Review 输入：原文 + 内部草稿\n\n能学到：\n· 漏段、漏表\n· 重复与冲突\n· 格式和粒度\n· 图片/OCR 限制", { fill: C.cyan, labelColor: C.bblue, fontSize: 13.5 });
-box(s, LEFT + 8.34, 1.95, 3.76, 3.7, "方式 3", "任务目标 Review", "Review 输入：原文 + 输出 + 规范/Reviewer\n\n能学到：\n· 什么属于抽取目标\n· 什么粒度算一条\n· 业务口径与错误标准", { fill: C.good, labelColor: C.green, fontSize: 13.5 });
-callout(s, "Memory 是否有效，取决于 Review 的信息来源和结构。", 5.95);
+// 4. Experiment map
+s = p.addSlide(); base(s, "EXPERIMENT MAP", 4);
+title(s, "三个实验，回答三个不同问题", "先判断学习信号是否有效，再生成托管 Memory，最后用留出文档验证跨 session 影响。");
+box(s, LEFT, 1.9, 3.75, 3.9, "实验一 · 学习信号", "只看输出的抽象自省", "问题：Agent 能否仅从自己的结果中发现真正遗漏？\n\n输入：已抽取结果\n产物：15 条 canonical rules\n观察：90 → 102，主要是拆分变细", { fill: C.bad, labelColor: C.orange, fontSize: 13.2 });
+box(s, LEFT + 4.17, 1.9, 3.75, 3.9, "实验二 · Memory 生成", "结构化 Self-review", "问题：怎样产生可被 Memory System 提炼的高质量轨迹？\n\nHarness Agent：原文 + 草稿自审\nMemory System：EPISODIC\n产物：1 episode + 2 reflections", { fill: C.cyan, labelColor: C.bblue, fontSize: 13.2 });
+box(s, LEFT + 8.34, 1.9, 3.76, 3.9, "实验三 · 跨任务验证", "留出文档开关对照", "问题：托管 Memory 是否改变下一份文档的抽取关注点？\n\n唯一变量：Memory 开关\n结果：31 vs 11\n主要差异：两张 BOM 的系统展开", { fill: C.good, labelColor: C.green, fontSize: 13.2 });
+callout(s, "主线：学习信号 → Memory 生成 → 留出文档验证", 6.02);
 
-// 5. Abstract reflection prompt
-s = p.addSlide(); base(s, "FIRST ATTEMPT", 5);
+// 5. Experiment 1 divider
+sectionSlide(
+  5,
+  1,
+  "抽象自省：只看输出能学到什么？",
+  "先验证没有原文对照时，Agent 自己总结出的规则是否能稳定提升完整性。",
+  "实验边界：这一段使用应用侧反思与规则合并，不是 AgentCore 内置 EPISODIC strategy。",
+  C.orange,
+);
+
+// 6. Abstract reflection prompt
+s = p.addSlide(); base(s, "EXPERIMENT 1 · PROMPTS", 6);
 title(s, "尝试一：只看输出的抽象自省", "最初的做法，是让模型从已经生成的抽取结果中总结通用规则。");
 codebox(s, LEFT, 1.9, 5.9, 3.55, "真实反思 Prompt", [
   "你是「抽取经验提炼器」。",
@@ -215,8 +247,8 @@ codebox(s, LEFT + 6.2, 1.9, 5.9, 3.55, "真实 Consolidation Prompt", [
 ].join("\n"), C.orange, 12);
 callout(s, "问题埋在输入里：模型只能总结“已经抽出来的内容”。", 5.78, C.orange);
 
-// 6. Abstract memory
-s = p.addSlide(); base(s, "WHAT IT LEARNED", 6);
+// 7. Abstract memory
+s = p.addSlide(); base(s, "EXPERIMENT 1 · MEMORY", 7);
 title(s, "抽象自省实际记住了什么", "4 轮运行后，consolidation 形成一份包含 15 条规则的 canonical Memory。");
 box(s, LEFT, 1.72, 3.86, 4.08, "规则 1–5", "", [
   "1. 设备主体识别：标题/首段的“容量+介质+设备类型”作为主体，全文统一。",
@@ -246,15 +278,25 @@ s.addText("4 轮抽取：90 → 93 → 95 → 102 条　|　15 条规则　|　5
   valign: "middle", margin: 0,
 });
 
-// 7. Error taxonomy
-s = p.addSlide(); base(s, "ROOT CAUSE", 7);
-title(s, "抽取错误其实有两类", "先区分错误类型，才能判断应该由 Self-review 解决，还是需要规范/Reviewer。");
+// 8. Experiment 1 conclusion
+s = p.addSlide(); base(s, "EXPERIMENT 1 · CONCLUSION", 8);
+title(s, "实验一结论：只看输出，发现不了整块遗漏", "规则数量和输出条数都增加了，但学习信号无法看见没有进入结果的章节或表格。");
 box(s, LEFT, 1.95, 5.85, 3.8, "类型 A", "源覆盖问题", "定义：原文中出现了 X，但输出中没有 X。\n\n例子：\n· 整张 BOM 没抽\n· 漏掉某个章节或附注\n· 重复记录\n· 字段为空或格式错误\n\n可通过：原文 + 草稿的结构化自审发现", { fill: C.cyan, labelColor: C.bblue, fontSize: 14 });
 box(s, LEFT + 6.25, 1.95, 5.85, 3.8, "类型 B", "任务边界问题", "定义：模型不知道 X 也属于抽取目标。\n\n例子：\n· 流程与见证要求\n· 报告与交付文件\n· 待确认事项\n· 什么粒度算一条\n\n需要：任务规范、Reviewer 或人工反馈", { fill: C.warm, labelColor: C.orange, fontSize: 14 });
 callout(s, "Self-review 能发现“漏了什么”；规范/Reviewer 决定“什么应该抽”。", 6.02);
 
-// 8. Structured self review prompts
-s = p.addSlide(); base(s, "NEW DESIGN", 8);
+// 9. Experiment 2 divider
+sectionSlide(
+  9,
+  2,
+  "生成托管 Memory：让 Review 对照原文",
+  "这一段只回答 Memory 如何生成：Harness Agent 产生结构化轨迹，Memory System 负责提炼。",
+  "实验边界：源任务是 13 页液氮罐文档；结果是 1 条 episode 和 2 条 actor-level reflection。",
+  C.bblue,
+);
+
+// 10. Structured self review prompts
+s = p.addSlide(); base(s, "EXPERIMENT 2 · HARNESS AGENT", 10);
 title(s, "Harness Agent：两阶段结构化 Self-review", "两个阶段均由 Harness Agent 执行；产物写入同一 runtime session，等待 Memory System 后台提炼。");
 codebox(s, LEFT, 1.82, 5.95, 4.15, "HARNESS AGENT · 阶段一 Prompt", [
   "先在内部形成完整抽取草稿，再审查草稿；",
@@ -284,8 +326,8 @@ codebox(s, LEFT + 6.2, 1.82, 5.9, 4.15, "HARNESS AGENT · 阶段二 Prompt", [
 ].join("\n"), C.green, 11.2);
 callout(s, "执行主体：Harness Agent　|　产物：self_review + 最终 JSON　|　载体：同一 session events", 6.18, C.green);
 
-// 9. AgentCore pipeline
-s = p.addSlide(); base(s, "MANAGED MEMORY", 9);
+// 11. AgentCore pipeline
+s = p.addSlide(); base(s, "EXPERIMENT 2 · MEMORY SYSTEM", 11);
 title(s, "Memory System：EPISODIC 提炼轨迹", "AgentCore Memory 资源使用内置 EPISODIC strategy；后台异步处理 Harness Agent 产生的完整 session events。");
 const y9 = 2.0;
 box(s, LEFT, y9, 2.5, 1.35, "HARNESS AGENT", "Session Events", "原文 + self_review + 最终 JSON", { fill: C.card, fontSize: 12.5 });
@@ -300,8 +342,8 @@ stat(s, LEFT + 4.85, 4.15, 3.4, "2", "actor-level reflections", C.bblue);
 stat(s, LEFT + 8.6, 4.15, 3.4, "新 session", "Harness 自动检索并注入", C.green);
 callout(s, "Episode namespace: /episodes/{actorId}/{sessionId}　|　Reflection namespace: /episodes/{actorId}", 5.95);
 
-// 10. Actual memory
-s = p.addSlide(); base(s, "REAL MEMORY", 10);
+// 12. Actual memory
+s = p.addSlide(); base(s, "EXPERIMENT 2 · REAL MEMORY", 12);
 title(s, "AgentCore Memory System 实际生成的 Records", "以下内容均由内置 EPISODIC strategy 异步生成，不是 Harness Agent 手工写入的规则。");
 box(s, LEFT, 1.82, 4.0, 4.3, "MEMORY SYSTEM · EPISODE RECORD", "两阶段流程设计有效",
   "先输出 self_review 再执行修订，避免一次性处理复杂文档时遗漏问题。\n\n对于 OCR 错误、章节跳号、重复表格和图片内容，分阶段结构化抽取是推荐模式。\n\n不可完整提取的内容应显式说明限制。", { fill: C.cyan, labelColor: C.bblue, fontSize: 13 });
@@ -310,8 +352,18 @@ box(s, LEFT + 4.25, 1.82, 3.85, 4.3, "MEMORY SYSTEM · ACTOR REFLECTION 1", "Two
 box(s, LEFT + 8.35, 1.82, 3.75, 4.3, "MEMORY SYSTEM · ACTOR REFLECTION 2", "Inline Annotation",
   "遇到 OCR 错误或表格冲突时：\n\n· 不静默丢弃\n· 保留原文\n· 标记冲突值\n· 文档级限制写入 __META__", { fill: C.good, labelColor: C.green, fontSize: 13, headSize: 15 });
 
-// 11. Controlled target experiment
-s = p.addSlide(); base(s, "CONTROLLED TEST", 11);
+// 13. Experiment 3 divider
+sectionSlide(
+  13,
+  3,
+  "留出文档：只改变 Memory 开关",
+  "源任务已经结束；现在换一份全新电机图纸，验证跨 session 召回是否改变抽取行为。",
+  "实验边界：两组目标调用配置相同；唯一变量是 Memory System 是否检索并注入 records。",
+  C.green,
+);
+
+// 14. Controlled target experiment
+s = p.addSlide(); base(s, "EXPERIMENT 3 · CONTROL", 14);
 title(s, "Harness Agent 留出实验：目标端只改变 Memory 开关", "目标抽取由 Harness Agent 完成；Memory System 只在 enabled 组负责自动检索并注入 records。");
 codebox(s, LEFT, 1.78, 5.95, 3.9, "HARNESS AGENT · 目标抽取 Prompt", [
   "根据用户文档抽取所有可识别的技术要求/参数。",
@@ -327,59 +379,46 @@ box(s, LEFT + 6.2, 1.78, 5.9, 3.9, "控制变量", "Harness Agent 配置相同",
   "· 同一测试文档与 system prompt\n· claude-sonnet-4-6\n· temperature=0 · maxTokens=32768\n· skills=[] · tools=[]\n· 两组均使用全新 session\n\nMemory 组：EPISODIC retrieval enabled\nNo Memory 组：Memory disabled", { fill: C.card, labelColor: C.green, fontSize: 13.3 });
 callout(s, "执行主体：Harness Agent　|　实验变量：Memory System 是否检索并注入 source actor records", 5.95, C.green);
 
-// 12. Actual outputs
-s = p.addSlide(); base(s, "REAL OUTPUT", 12);
-title(s, "Harness Agent 输出：Memory 注入后关注点发生变化", "两组输出都由 Harness Agent 生成；差别是左侧调用前接收了 Memory System 注入的 records。");
-codebox(s, LEFT, 1.82, 5.95, 3.9, "HARNESS AGENT + MEMORY SYSTEM · BOM", JSON.stringify([
-  {
-    "设备部件": "机座",
-    "指标名称": "零件明细（表1-序号1）",
-    "指标特征": "数量：1；其他字段原文为「-」"
-  },
-  {
-    "设备部件": "壳体组件",
-    "指标名称": "组件明细（表2-序号1）",
-    "指标特征": "数量：1；其他字段原文为「-」"
-  }
-], null, 2), C.green, 10.5);
-codebox(s, LEFT + 6.2, 1.82, 5.9, 3.9, "HARNESS AGENT · MEMORY DISABLED", JSON.stringify([
-  {
-    "设备部件": "整机",
-    "指标名称": "未注公差等级",
-    "指标特征": "GB/T 1804-m级"
-  },
-  {
-    "设备部件": "轴承",
-    "指标名称": "装配数量",
-    "指标特征": "2件"
-  }
-], null, 2), C.bblue, 10.5);
-stat(s, LEFT + 1.0, 5.62, 4.5, "31 条", "Memory 首次运行", C.green);
-stat(s, LEFT + 6.6, 5.62, 4.5, "11 条", "No Memory 首次运行", C.bblue);
+// 15. Key result
+s = p.addSlide(); base(s, "EXPERIMENT 3 · KEY RESULT", 15);
+title(s, "重点结果：31 vs 11", "两组都由 Harness Agent 输出；Memory 组在推理前接收了 Memory System 检索并注入的 records。");
+stat(s, LEFT, 1.78, 4.85, "31 条", "Memory enabled", C.green);
+s.addText("VS", {
+  x: LEFT + 5.05, y: 2.08, w: 1.35, h: 0.58, fontFace: FH,
+  fontSize: 24, bold: true, color: C.white, align: "center", margin: 0,
+});
+stat(s, LEFT + 6.58, 1.78, 4.85, "11 条", "Memory disabled", C.bblue);
+rect(s, LEFT, 3.38, MW, 1.08, C.good, C.green);
+s.addText("多出的 20 条主要来自两张 BOM：Memory 让 Agent 把零部件表和组件表系统展开。", {
+  x: LEFT + 0.35, y: 3.38, w: MW - 0.7, h: 1.08, fontFace: FH,
+  fontSize: 19, bold: true, color: C.green, align: "center", valign: "middle", margin: 0,
+});
+box(s, LEFT, 4.72, 5.86, 1.35, "MEMORY 组新增示例", "零部件表", "机座 · 前端盖 · 转子 · 轴承", { fill: C.card, labelColor: C.green, fontSize: 13.2, headSize: 15 });
+box(s, LEFT + 6.24, 4.72, 5.86, 1.35, "MEMORY 组新增示例", "组件表", "壳体组件 · 法兰盘组件 · 散热器组件", { fill: C.card, labelColor: C.green, fontSize: 13.2, headSize: 15 });
+callout(s, "人眼检查：新增条目基本有原文依据；结论是覆盖关注点扩大，不是“质量提升 3 倍”。", 6.15, C.orange);
 
-// 13. Reconcile
-s = p.addSlide(); base(s, "SYNTHESIS", 13);
-title(s, "Harness Agent 的两种 Review，为何产生不同 Memory", "不是 Self-reflection 有用或没用，而是 Harness Agent 的 Review 是否有可靠检查对象。");
+// 16. Reconcile
+s = p.addSlide(); base(s, "EXPERIMENT SYNTHESIS", 16);
+title(s, "三个实验合起来，结论才完整", "抽象自省、Memory 生成和留出验证是三项独立实验，不是一个连续的“抽取方法二”。");
 const head = (text) => ({ text, options: { bold: true, color: C.white, fill: C.blue, fontFace: FB, fontSize: 12.5 } });
 const cell = (text, fill = C.card, color = C.body, bold = false) => ({ text, options: { color, fill, bold, fontFace: FB, fontSize: 12.2, valign: "middle" } });
 s.addTable([
-  [head("比较项"), head("抽象自省"), head("结构化 Self-review")],
-  [cell("Review 输入", C.bg2, C.white, true), cell("只有模型输出", C.bad), cell("原文 + 内部草稿", C.good)],
-  [cell("Review 结构", C.bg2, C.white, true), cell("自由总结规则", C.bad), cell("固定检查维度", C.good)],
-  [cell("Memory 形成主体", C.bg2, C.white, true), cell("应用调用 LLM 合并规则", C.bad), cell("Memory System · EPISODIC", C.good)],
-  [cell("主要 Memory", C.bg2, C.white, true), cell("拆分与格式规则", C.bad), cell("覆盖、遗漏、表格、冲突", C.good)],
-  [cell("观察结果", C.bg2, C.white, true), cell("作用有限，可能过度拆分", C.bad, C.orange, true), cell("明显扩大 BOM 覆盖", C.good, C.green, true)],
-  [cell("适合解决", C.bg2, C.white, true), cell("部分格式与粒度问题", C.bad), cell("源覆盖与一致性问题", C.good)],
-  [cell("仍需外部信号", C.bg2, C.white, true), cell("任务边界", C.warm), cell("任务边界", C.warm)],
+  [head("实验"), head("实验一 · 学习信号"), head("实验二 · Memory 生成"), head("实验三 · 留出验证")],
+  [cell("核心问题", C.bg2, C.white, true), cell("只看输出能学到什么？", C.bad), cell("怎样产生可提炼轨迹？", C.cyan), cell("Memory 是否改变下一任务？", C.good)],
+  [cell("执行主体", C.bg2, C.white, true), cell("应用侧 LLM 反思/合并", C.bad), cell("Harness Agent + Memory System", C.cyan), cell("Harness Agent；Memory 开关", C.good)],
+  [cell("输入/变量", C.bg2, C.white, true), cell("只有已抽取结果", C.bad), cell("原文 + 草稿 + self_review", C.cyan), cell("同配置；只改变 Memory", C.good)],
+  [cell("实际产物", C.bg2, C.white, true), cell("15 条 canonical rules", C.bad), cell("1 episode + 2 reflections", C.cyan), cell("31 条 vs 11 条", C.good, C.green, true)],
+  [cell("观察", C.bg2, C.white, true), cell("90→102，主要拆分变细", C.bad, C.orange, true), cell("形成覆盖/遗漏处理方法", C.cyan), cell("两张 BOM 被系统展开", C.good, C.green, true)],
+  [cell("结论边界", C.bg2, C.white, true), cell("看不见整块遗漏", C.bad), cell("证明托管 Memory 可生成", C.cyan), cell("证明关注点发生变化", C.good)],
 ], {
-  x: LEFT, y: 1.82, w: MW, h: 3.8, colW: [2.6, 4.7, 4.8],
-  rowH: [0.42, 0.42, 0.42, 0.48, 0.48, 0.52, 0.42, 0.42],
-  border: { pt: 0.75, color: C.line }, fontFace: FB, fontSize: 12.2,
+  x: LEFT, y: 1.82, w: MW, h: 3.9, colW: [1.85, 3.35, 3.45, 3.45],
+  rowH: [0.46, 0.5, 0.5, 0.5, 0.52, 0.54, 0.5],
+  border: { pt: 0.75, color: C.line }, fontFace: FB, fontSize: 11.7,
 });
-callout(s, "统一结论：源文本自审能改善覆盖；任务边界仍需要规范、Reviewer 或人工反馈。", 5.95);
+callout(s, "统一结论：原文驱动的 Review 产生了可复用 Memory，并在留出文档上把 BOM 覆盖从零散变为系统展开。", 5.95);
 
-// 14. Best practices
-s = p.addSlide(); base(s, "BEST PRACTICES", 14);
+// 17. Best practices
+s = p.addSlide(); base(s, "BEST PRACTICES", 17);
 title(s, "结构化数据抽取的 Memory 最佳实践", "把 Memory 设计成可验证的学习回路，而不是无限累积的历史上下文。");
 const items = [
   ["1", "Harness Agent · Review 看原文", "不要只对输出做抽象总结。"],
@@ -401,7 +440,7 @@ items.forEach((it, i) => {
     fontFace: FH, fontSize: 15, bold: true, align: "center", valign: "middle", margin: 0,
   });
   s.addText(it[1], {
-    x: x + 0.82, y: y + 0.13, w: 2.2, h: 0.3, fontFace: FB,
+    x: x + 0.82, y: y + 0.13, w: 4.85, h: 0.3, fontFace: FB,
     fontSize: 14.5, bold: true, color: C.white, margin: 0,
   });
   s.addText(it[2], {
