@@ -1,5 +1,6 @@
 // Agent Memory Best Practices: structured data extraction.
 // First-time-reader deck, aligned with the existing dark AWS visual system.
+const fs = require("fs");
 const pptxgen = require("pptxgenjs");
 const p = new pptxgen();
 p.defineLayout({ name: "W", width: 13.333, height: 7.5 });
@@ -133,6 +134,33 @@ function sectionSlide(n, experiment, titleText, question, bridge, color) {
     fontSize: 20, bold: true, color, align: "center", valign: "middle", margin: 0,
   });
   return slide;
+}
+function loadSpeakerNotes(fileName) {
+  const markdown = fs.readFileSync(fileName, "utf8");
+  const headers = [...markdown.matchAll(/^## Slide (\d+)｜.*$/gm)];
+  const notes = headers.map((header, index) => {
+    const slideNumber = Number(header[1]);
+    const start = header.index + header[0].length;
+    const end = index + 1 < headers.length ? headers[index + 1].index : markdown.length;
+    const text = markdown.slice(start, end)
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/^>\s?/gm, "")
+      .replace(/^-\s+/gm, "• ")
+      .trim();
+    return { slideNumber, text };
+  });
+
+  if (notes.length !== p._slides.length) {
+    throw new Error(`Speaker Notes count ${notes.length} does not match slide count ${p._slides.length}.`);
+  }
+
+  notes.forEach((note, index) => {
+    if (note.slideNumber !== index + 1) {
+      throw new Error(`Expected Speaker Notes for slide ${index + 1}, found slide ${note.slideNumber}.`);
+    }
+    p._slides[index].addNotes(note.text);
+  });
 }
 
 let s;
@@ -454,6 +482,8 @@ s.addText("Memory 的价值不是记住历史答案，而是复用经过 Review 
   fontFace: FH, fontSize: 15.5, bold: true, color: C.bblue,
   align: "center", valign: "middle", margin: 0,
 });
+
+loadSpeakerNotes("docs/记忆能让Agent越跑越好吗-V3-notes.md");
 
 p.writeFile({ fileName: "docs/记忆能让Agent越跑越好吗-V3.pptx" })
   .then((file) => console.log("WROTE", file));
