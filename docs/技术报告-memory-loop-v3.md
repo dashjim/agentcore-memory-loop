@@ -134,6 +134,7 @@ V3 不报告自动评分，完整输出交由人工比较。
 - Markdown：[`memory-loop-v3-results.md`](memory-loop-v3-results.md)
 - JSON：[`memory-loop-v3-results.json`](memory-loop-v3-results.json)
 - PPTX：[`记忆能让Agent越跑越好吗-V3.pptx`](记忆能让Agent越跑越好吗-V3.pptx)
+- Speaker Notes：[`记忆能让Agent越跑越好吗-V3-notes.md`](记忆能让Agent越跑越好吗-V3-notes.md)
 
 复现实验：
 
