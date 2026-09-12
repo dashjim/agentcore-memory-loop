@@ -44,9 +44,9 @@ function base(s, kicker, n) {
     color: C.muted, align: "right", margin: 0,
   });
 }
-function title(s, text, lead) {
+function title(s, text, lead, fontSize = 27) {
   s.addText(text, {
-    x: LEFT, y: 0.38, w: 11.5, h: 0.62, fontFace: FH, fontSize: 27,
+    x: LEFT, y: 0.38, w: 11.5, h: 0.62, fontFace: FH, fontSize,
     bold: true, color: C.white, margin: 0,
   });
   if (lead) s.addText(lead, {
@@ -116,12 +116,13 @@ function callout(s, text, y, color = C.bblue) {
 function sectionSlide(n, experiment, titleText, question, bridge, color) {
   const slide = p.addSlide();
   base(slide, `EXPERIMENT ${experiment}`, n);
+  const titleSize = titleText.length > 31 ? 27 : titleText.length > 24 ? 30 : 34;
   slide.addText(`0${experiment}`, {
     x: LEFT, y: 1.22, w: 2.25, h: 1.35, fontFace: FH, fontSize: 72,
     bold: true, color, margin: 0, valign: "middle",
   });
   slide.addText(titleText, {
-    x: LEFT + 2.55, y: 1.3, w: 9.3, h: 0.82, fontFace: FH, fontSize: 34,
+    x: LEFT + 2.55, y: 1.3, w: 9.3, h: 0.82, fontFace: FH, fontSize: titleSize,
     bold: true, color: C.white, margin: 0,
   });
   slide.addText(question, {
@@ -181,16 +182,16 @@ s.addText("结构化数据抽取场景", {
   x: 0.75, y: 2.72, w: 11.4, h: 0.62, fontFace: FH, fontSize: 28,
   bold: true, color: C.bblue, margin: 0,
 });
-s.addText("怎样让 Agent 从一次抽取中学习，并在下一份文档中抽得更完整？", {
+s.addText("怎样让 Harness Agent 从一次抽取中学习，并在下一份文档中抽得更完整？", {
   x: 0.75, y: 3.75, w: 11.3, h: 0.5, fontFace: FB, fontSize: 18,
   color: C.body, margin: 0,
 });
 rect(s, 0.75, 4.52, 11.1, 1.15, C.card);
-s.addText("核心：把 Review 中发现的遗漏模式与处理策略，转化为可复用的 Memory。", {
+s.addText("核心：Harness Agent 产出 Review 轨迹；AgentCore Memory System 把轨迹提炼为可复用 Records。", {
   x: 1.0, y: 4.52, w: 10.6, h: 1.15, fontFace: FH, fontSize: 20,
   bold: true, color: C.white, align: "center", valign: "middle", margin: 0,
 });
-s.addText("基于真实工业文档抽取实验 · AgentCore Harness + EPISODIC Memory", {
+s.addText("基于真实工业文档实验 · Application 编排 + Harness Agent 抽取 + AgentCore Memory EPISODIC", {
   x: 0.75, y: 6.08, w: 11.4, h: 0.35, fontFace: FB, fontSize: 12,
   color: C.muted, margin: 0,
 });
@@ -201,8 +202,8 @@ s.addText("亚马逊云科技", {
 
 // 2. Challenge
 s = p.addSlide(); base(s, "THE CHALLENGE", 2);
-title(s, "结构化抽取真正难在哪里", "难点不是生成合法 JSON，而是完整识别散落在不同载体中的“应该抽取的信息”。");
-codebox(s, LEFT, 1.9, 5.85, 3.65, "真实输入：正文 + 表格", [
+title(s, "Harness Agent 的结构化抽取难点", "Harness Agent 生成合法 JSON 并不难；难点是完整识别散落在不同载体中的目标信息。");
+codebox(s, LEFT, 1.9, 5.85, 3.65, "APPLICATION 提供的真实输入", [
   "技术要求:",
   "1. 所有尺寸单位为毫米",
   "2. 未注公差按 GB/T 1804-m 级",
@@ -212,50 +213,55 @@ codebox(s, LEFT, 1.9, 5.85, 3.65, "真实输入：正文 + 表格", [
   "| 1 | 机座 | 1 |",
   "| 2 | 前端盖 | 1 |",
 ].join("\n"), C.bblue, 11.5);
-box(s, LEFT + 6.15, 1.9, 5.95, 3.65, "常见漏项", "模型通常先抓住数值参数",
+box(s, LEFT + 6.15, 1.9, 5.95, 3.65, "HARNESS AGENT · 常见漏项", "Harness Agent 通常先抓住数值参数",
   "· 正文参数容易被识别\n· 整张 BOM 可能被当成背景\n· 附注与备注容易跳过\n· 定性、流程、待确认要求不一定被视为指标\n· 图片/OCR 内容存在不完整与冲突", { fill: C.bad, labelColor: C.orange, fontSize: 14 });
-callout(s, "真正的问题：Agent 如何知道自己漏了什么？", 5.82, C.orange);
+callout(s, "真正的问题：Harness Agent 如何发现自己的源覆盖遗漏？", 5.82, C.orange);
 
 // 3. Memory role
 s = p.addSlide(); base(s, "MEMORY ROLE", 3);
-title(s, "Memory 应该在抽取回路中做什么", "不是保存上一次答案，而是保存下一次任务可复用的抽取策略。");
-const y3 = 2.25, w3 = 2.05;
-box(s, LEFT, y3, w3, 1.25, "①", "抽取草稿", "当前文档", { fill: C.card });
-arrow(s, LEFT + 2.08, y3 + 0.32);
-box(s, LEFT + 2.5, y3, w3, 1.25, "②", "Review", "漏了什么？", { fill: C.cyan });
-arrow(s, LEFT + 4.58, y3 + 0.32);
-box(s, LEFT + 5.0, y3, w3, 1.25, "③", "可复用经验", "形成策略", { fill: C.warm, labelColor: C.orange });
-arrow(s, LEFT + 7.08, y3 + 0.32);
-box(s, LEFT + 7.5, y3, w3, 1.25, "④", "Memory", "跨 session", { fill: C.good, labelColor: C.green });
-arrow(s, LEFT + 9.58, y3 + 0.32);
-box(s, LEFT + 10.0, y3, 2.1, 1.25, "⑤", "下一份文档", "复用经验", { fill: C.card });
-box(s, LEFT, 4.1, 3.75, 1.55, "容易漏什么", "", "表格、附注、流程要求、图片限制", { labelColor: C.orange });
-box(s, LEFT + 4.17, 4.1, 3.75, 1.55, "应该检查什么", "", "覆盖、遗漏、格式、粒度、冲突", { labelColor: C.bblue });
-box(s, LEFT + 8.34, 4.1, 3.76, 1.55, "下次怎么做", "", "先扫章节与表格，再按 next_actions 修订", { labelColor: C.green });
-callout(s, "Memory 的价值：复用 Review 得到的方法，而不是复读历史结果。", 5.98);
+title(s, "端到端抽取回路：每一步由谁执行", "Application 负责调用与实验控制；Harness Agent 负责抽取与自审；Memory System 负责 EPISODIC 处理与跨 session 召回。");
+const y3 = 1.92, w3 = 2.05, gap3 = 0.36;
+const x31 = LEFT, x32 = x31 + w3 + gap3, x33 = x32 + w3 + gap3;
+const x34 = x33 + w3 + gap3, x35 = x34 + w3 + gap3;
+box(s, x31, y3, w3, 1.75, "① APPLICATION", "启动源任务", "向 Harness Agent 提交源文档与抽取 Prompt", { fill: C.card, fontSize: 11.2, headSize: 15 });
+arrow(s, x31 + w3, y3 + 0.56);
+box(s, x32, y3, w3, 1.75, "② HARNESS AGENT", "抽取 + Self-review", "产出 self_review、next_actions 与最终 JSON", { fill: C.cyan, fontSize: 11.2, headSize: 15 });
+arrow(s, x32 + w3, y3 + 0.56);
+box(s, x33, y3, w3, 1.75, "③ MEMORY SYSTEM", "EPISODIC 处理", "Event Storage → Extraction → Consolidation → Reflection", { fill: C.warm, labelColor: C.orange, fontSize: 10.8, headSize: 15 });
+arrow(s, x33 + w3, y3 + 0.56);
+box(s, x34, y3, w3, 1.75, "④ AGENTCORE HARNESS", "调用 Retrieval + 注入", "调用 Memory System 检索 actor records，并注入新 session", { fill: C.good, labelColor: C.green, fontSize: 10.8, headSize: 14.5 });
+arrow(s, x34 + w3, y3 + 0.56);
+box(s, x35, y3, w3, 1.75, "⑤ HARNESS AGENT", "执行目标抽取", "读取新文档与注入的 Records，输出最终 JSON", { fill: C.card, fontSize: 11.2, headSize: 15 });
+box(s, LEFT, 4.15, 3.75, 1.42, "源任务产物 · HARNESS AGENT", "", "self_review + next_actions + 最终 JSON", { labelColor: C.bblue, fontSize: 13 });
+box(s, LEFT + 4.17, 4.15, 3.75, 1.42, "托管记录 · MEMORY SYSTEM", "", "1 session-level episode + actor-level reflections", { labelColor: C.orange, fontSize: 13 });
+box(s, LEFT + 8.34, 4.15, 3.76, 1.42, "目标任务产物 · HARNESS AGENT", "", "Memory enabled / disabled 两组最终 JSON", { labelColor: C.green, fontSize: 13 });
+callout(s, "端到端链路：Application 调用 → Harness Agent 产轨迹 → Memory System 提炼/检索 → AgentCore Harness 注入", 5.88);
 
 // 4. Experiment map
 s = p.addSlide(); base(s, "EXPERIMENT MAP", 4);
-title(s, "三个实验，回答三个不同问题", "先判断学习信号是否有效，再生成托管 Memory，最后用留出文档验证跨 session 影响。");
-box(s, LEFT, 1.9, 3.75, 3.9, "实验一 · 学习信号", "只看输出的抽象自省", "问题：Agent 能否仅从自己的结果中发现真正遗漏？\n\n输入：已抽取结果\n产物：15 条 canonical rules\n观察：90 → 102，主要是拆分变细", { fill: C.bad, labelColor: C.orange, fontSize: 13.2 });
-box(s, LEFT + 4.17, 1.9, 3.75, 3.9, "实验二 · Memory 生成", "结构化 Self-review", "问题：怎样产生可被 Memory System 提炼的高质量轨迹？\n\nHarness Agent：原文 + 草稿自审\nMemory System：EPISODIC\n产物：1 episode + 2 reflections", { fill: C.cyan, labelColor: C.bblue, fontSize: 13.2 });
-box(s, LEFT + 8.34, 1.9, 3.76, 3.9, "实验三 · 跨任务验证", "留出文档开关对照", "问题：托管 Memory 是否改变下一份文档的抽取关注点？\n\n唯一变量：Memory 开关\n结果：31 vs 11\n主要差异：两张 BOM 的系统展开", { fill: C.good, labelColor: C.green, fontSize: 13.2 });
-callout(s, "主线：学习信号 → Memory 生成 → 留出文档验证", 6.02);
+title(s, "三个实验：调用链和系统边界", "三项实验使用不同的反思主体与 Memory 机制；每项实验必须分别解释执行者、输入、产物和验证方式。");
+box(s, LEFT, 1.82, 3.75, 4.05, "实验一 · APPLICATION 自管规则", "Reflection LLM 只看 Harness Agent 输出",
+  "Application → Harness Agent：生成抽取 JSON\nApplication → Reflection LLM：生成本轮规则\nApplication → Consolidation LLM：合并 canonical rules\nApplication → 下一轮 Harness Agent：注入规则\n\n观察：90 → 102，主要拆分变细", { fill: C.bad, labelColor: C.orange, fontSize: 11.4, headSize: 15.5 });
+box(s, LEFT + 4.17, 1.82, 3.75, 4.05, "实验二 · AGENTCORE EPISODIC", "Harness Agent 产轨迹；Memory System 提炼",
+  "Application：顺序调用两个阶段\nHarness Agent：原文 → self_review → 最终 JSON\nMemory System · EPISODIC：Event Storage → Extraction → Consolidation → Reflection\n\n产物：1 episode + 2 actor reflections", { fill: C.cyan, labelColor: C.bblue, fontSize: 11.4, headSize: 15.5 });
+box(s, LEFT + 8.34, 1.82, 3.76, 4.05, "实验三 · APPLICATION 控制对照", "Memory Retrieval 开关实验",
+  "Application：创建两组 fresh sessions\nMemory System：仅 enabled 组 Retrieval\nAgentCore Harness：仅 enabled 组注入 Records\nHarness Agent：两组使用相同 Prompt 抽取\nReviewer：人工核对\n\n结果：31 vs 11；差异主要来自两张 BOM", { fill: C.good, labelColor: C.green, fontSize: 11.1, headSize: 15.5 });
+callout(s, "实验主线：应用侧规则学习 → 托管 EPISODIC 记录生成 → 托管 Records 跨 session 验证", 6.05);
 
 // 5. Experiment 1 divider
 sectionSlide(
   5,
   1,
-  "抽象自省：只看输出能学到什么？",
-  "先验证没有原文对照时，Agent 自己总结出的规则是否能稳定提升完整性。",
-  "实验边界：这一段使用应用侧反思与规则合并，不是 AgentCore 内置 EPISODIC strategy。",
+  "应用侧 Reflection LLM：只看 Harness Agent 输出能学到什么？",
+  "Application 只向 Reflection LLM 提供 Harness Agent 已抽取的 JSON，不提供源文档。",
+  "实验边界：Application 调用 Reflection LLM 生成规则，再调用 Consolidation LLM 合并；本段不使用 AgentCore EPISODIC。",
   C.orange,
 );
 
 // 6. Abstract reflection prompt
 s = p.addSlide(); base(s, "EXPERIMENT 1 · PROMPTS", 6);
-title(s, "尝试一：只看输出的抽象自省", "最初的做法，是让模型从已经生成的抽取结果中总结通用规则。");
-codebox(s, LEFT, 1.9, 5.9, 3.55, "真实反思 Prompt", [
+title(s, "应用侧两个 LLM 调用的真实 Prompt", "Application 先把 Harness Agent 输出发送给 Reflection LLM，再把新规则与旧规则发送给 Consolidation LLM。");
+codebox(s, LEFT, 1.9, 5.9, 3.55, "APPLICATION → REFLECTION LLM", [
   "你是「抽取经验提炼器」。",
   "给你一次抽取结果，总结可复用于",
   "同类文档的抽取规则：",
@@ -264,7 +270,7 @@ codebox(s, LEFT, 1.9, 5.9, 3.55, "真实反思 Prompt", [
   "· 只讲规则，不讲具体数值",
   "· 不超过 10 条",
 ].join("\n"), C.bblue, 12);
-codebox(s, LEFT + 6.2, 1.9, 5.9, 3.55, "真实 Consolidation Prompt", [
+codebox(s, LEFT + 6.2, 1.9, 5.9, 3.55, "APPLICATION → CONSOLIDATION LLM", [
   "把「现有规则集 + 本轮新规则」",
   "合并成一份规范规则集：",
   "",
@@ -273,11 +279,11 @@ codebox(s, LEFT + 6.2, 1.9, 5.9, 3.55, "真实 Consolidation Prompt", [
   "· 每条必须可操作",
   "· 只输出最终规则集",
 ].join("\n"), C.orange, 12);
-callout(s, "问题埋在输入里：模型只能总结“已经抽出来的内容”。", 5.78, C.orange);
+callout(s, "输入盲区：Reflection LLM 只看到 Harness Agent 输出，因此无法观察被整块漏掉的原文区域。", 5.78, C.orange);
 
 // 7. Abstract memory
 s = p.addSlide(); base(s, "EXPERIMENT 1 · MEMORY", 7);
-title(s, "抽象自省实际记住了什么", "4 轮运行后，consolidation 形成一份包含 15 条规则的 canonical Memory。");
+title(s, "Consolidation LLM 最终合并出 15 条规则", "Application 每轮把 canonical rules 注入下一次 Harness Agent 调用；4 轮后规则集收敛为 15 条。");
 box(s, LEFT, 1.72, 3.86, 4.08, "规则 1–5", "", [
   "1. 设备主体识别：标题/首段的“容量+介质+设备类型”作为主体，全文统一。",
   "2. 整体性能归属：介质、容积、压力、温度、绝热等归“储罐整体”。",
@@ -300,7 +306,7 @@ box(s, LEFT + 8.24, 1.72, 3.86, 4.08, "规则 11–15", "", [
   "15. 原文溯源：保留编号和标点；OCR 错误可修特征，但原文不改。",
 ].join("\n\n"), { fill: C.good, labelColor: C.green, fontSize: 10.5 });
 rect(s, LEFT, 6.02, MW, 0.72, C.bg2, C.orange);
-s.addText("4 轮抽取：90 → 93 → 95 → 102 条　|　15 条规则　|　53 个唯一原文　|　1.92 条/原文", {
+s.addText("Harness Agent 4 轮输出：90 → 93 → 95 → 102 条　|　Consolidation LLM：15 条规则　|　53 个唯一原文", {
   x: LEFT + 0.25, y: 6.02, w: MW - 0.5, h: 0.72, fontFace: FH,
   fontSize: 15.5, bold: true, color: C.orange, align: "center",
   valign: "middle", margin: 0,
@@ -308,25 +314,25 @@ s.addText("4 轮抽取：90 → 93 → 95 → 102 条　|　15 条规则　|　5
 
 // 8. Experiment 1 conclusion
 s = p.addSlide(); base(s, "EXPERIMENT 1 · CONCLUSION", 8);
-title(s, "实验一结论：只看输出，发现不了整块遗漏", "规则数量和输出条数都增加了，但学习信号无法看见没有进入结果的章节或表格。");
-box(s, LEFT, 1.95, 5.85, 3.8, "类型 A", "源覆盖问题", "定义：原文中出现了 X，但输出中没有 X。\n\n例子：\n· 整张 BOM 没抽\n· 漏掉某个章节或附注\n· 重复记录\n· 字段为空或格式错误\n\n可通过：原文 + 草稿的结构化自审发现", { fill: C.cyan, labelColor: C.bblue, fontSize: 14 });
-box(s, LEFT + 6.25, 1.95, 5.85, 3.8, "类型 B", "任务边界问题", "定义：模型不知道 X 也属于抽取目标。\n\n例子：\n· 流程与见证要求\n· 报告与交付文件\n· 待确认事项\n· 什么粒度算一条\n\n需要：任务规范、Reviewer 或人工反馈", { fill: C.warm, labelColor: C.orange, fontSize: 14 });
-callout(s, "Self-review 能发现“漏了什么”；规范/Reviewer 决定“什么应该抽”。", 6.02);
+title(s, "实验一结论：Reflection LLM 看不到 Harness Agent 的整块遗漏", "Application 没有把源文档提供给 Reflection LLM；规则和条数增加并不能证明 Harness Agent 覆盖了更多原文区域。");
+box(s, LEFT, 1.95, 5.85, 3.8, "类型 A · HARNESS AGENT 可自审", "源覆盖问题", "定义：原文中出现了 X，但 Harness Agent 输出中没有 X。\n\n例子：\n· 整张 BOM 没抽\n· 漏掉章节或附注\n· 重复记录\n· 字段为空或格式错误\n\n发现主体：Harness Agent 同时读取原文 + 草稿", { fill: C.cyan, labelColor: C.bblue, fontSize: 13.5 });
+box(s, LEFT + 6.25, 1.95, 5.85, 3.8, "类型 B · REVIEWER 决定", "任务边界问题", "定义：Harness Agent 不知道 X 是否属于抽取目标。\n\n例子：\n· 流程与见证要求\n· 报告与交付文件\n· 待确认事项\n· 什么粒度算一条\n\n判断主体：任务规范制定者 / Reviewer / Human", { fill: C.warm, labelColor: C.orange, fontSize: 13.5 });
+callout(s, "Harness Agent 可用原文自审源覆盖；Reviewer / Human 负责定义任务边界。", 6.02);
 
 // 9. Experiment 2 divider
 sectionSlide(
   9,
   2,
-  "生成托管 Memory：让 Review 对照原文",
-  "这一段只回答 Memory 如何生成：Harness Agent 产生结构化轨迹，Memory System 负责提炼。",
-  "实验边界：源任务是 13 页液氮罐文档；结果是 1 条 episode 和 2 条 actor-level reflection。",
+  "Harness Agent 产出轨迹；Memory System 生成 Records",
+  "Application 顺序调用 Harness Agent 两个阶段；Harness Agent 对照原文自审并修订。",
+  "实验边界：AgentCore Memory System 使用内置 EPISODIC 处理源 session，生成 1 条 episode 和 2 条 actor reflections。",
   C.bblue,
 );
 
 // 10. Structured self review prompts
 s = p.addSlide(); base(s, "EXPERIMENT 2 · HARNESS AGENT", 10);
-title(s, "Harness Agent：两阶段结构化 Self-review", "两个阶段均由 Harness Agent 执行；产物写入同一 runtime session，等待 Memory System 后台提炼。");
-codebox(s, LEFT, 1.82, 5.95, 4.15, "HARNESS AGENT · 阶段一 Prompt", [
+title(s, "Harness Agent：两阶段 Self-review", "Application 连续调用同一 Harness Agent；Harness Agent 执行自审与修订；Memory System 保存同一 session 的 events。");
+codebox(s, LEFT, 1.82, 5.95, 4.15, "APPLICATION 调用 → HARNESS AGENT 阶段一", [
   "先在内部形成完整抽取草稿，再审查草稿；",
   "不要输出草稿。",
   "",
@@ -340,7 +346,7 @@ codebox(s, LEFT, 1.82, 5.95, 4.15, "HARNESS AGENT · 阶段一 Prompt", [
   "  }",
   "}",
 ].join("\n"), C.bblue, 10.8);
-codebox(s, LEFT + 6.2, 1.82, 5.9, 4.15, "HARNESS AGENT · 阶段二 Prompt", [
+codebox(s, LEFT + 6.2, 1.82, 5.9, 4.15, "APPLICATION 调用 → HARNESS AGENT 阶段二", [
   "读取原始文档和 self_review。",
   "",
   "根据 next_actions 重新完成抽取，",
@@ -352,27 +358,27 @@ codebox(s, LEFT + 6.2, 1.82, 5.9, 4.15, "HARNESS AGENT · 阶段二 Prompt", [
   "",
   "只输出最终五字段 JSON。",
 ].join("\n"), C.green, 11.2);
-callout(s, "执行主体：Harness Agent　|　产物：self_review + 最终 JSON　|　载体：同一 session events", 6.18, C.green);
+callout(s, "Application：顺序调用　|　Harness Agent：self_review + 最终 JSON　|　Memory System：保存 session events", 6.18, C.green);
 
 // 11. AgentCore pipeline
 s = p.addSlide(); base(s, "EXPERIMENT 2 · MEMORY SYSTEM", 11);
-title(s, "Memory System：EPISODIC 提炼轨迹", "AgentCore Memory 资源使用内置 EPISODIC strategy；后台异步处理 Harness Agent 产生的完整 session events。");
+title(s, "Memory System：EPISODIC 处理链", "Memory System 异步处理 Harness Agent 的 session events；新 session 中，AgentCore Harness 调用 Retrieval 并注入 Records。");
 const y9 = 2.0;
-box(s, LEFT, y9, 2.5, 1.35, "HARNESS AGENT", "Session Events", "原文 + self_review + 最终 JSON", { fill: C.card, fontSize: 12.5 });
-arrow(s, LEFT + 2.55, y9 + 0.38);
-box(s, LEFT + 3.0, y9, 2.5, 1.35, "MEMORY · EPISODIC", "Episode Extraction", "逐 turn 分析行为与结果", { fill: C.cyan, fontSize: 12.5 });
-arrow(s, LEFT + 5.55, y9 + 0.38);
-box(s, LEFT + 6.0, y9, 2.5, 1.35, "MEMORY · EPISODIC", "Consolidation", "形成 session-level episode", { fill: C.warm, labelColor: C.orange, fontSize: 12.5 });
-arrow(s, LEFT + 8.55, y9 + 0.38);
-box(s, LEFT + 9.0, y9, 3.1, 1.35, "MEMORY · EPISODIC", "Reflection", "形成 actor-level 可复用策略", { fill: C.good, labelColor: C.green, fontSize: 12.5 });
-stat(s, LEFT + 1.1, 4.15, 3.4, "1", "session-level episode", C.orange);
-stat(s, LEFT + 4.85, 4.15, 3.4, "2", "actor-level reflections", C.bblue);
-stat(s, LEFT + 8.6, 4.15, 3.4, "新 session", "Harness 自动检索并注入", C.green);
-callout(s, "Episode namespace: /episodes/{actorId}/{sessionId}　|　Reflection namespace: /episodes/{actorId}", 5.95);
+box(s, LEFT, y9, 2.5, 1.55, "MEMORY · EVENT STORAGE", "保存 Session Events", "Harness Agent 产物：原文 + self_review + 最终 JSON", { fill: C.card, fontSize: 10.5, headSize: 14.0 });
+arrow(s, LEFT + 2.55, y9 + 0.48);
+box(s, LEFT + 3.0, y9, 2.5, 1.55, "MEMORY · EXTRACTION", "分析每个 Turn", "Memory System 识别行为、结果与任务信号", { fill: C.cyan, fontSize: 10.5, headSize: 14.0 });
+arrow(s, LEFT + 5.55, y9 + 0.48);
+box(s, LEFT + 6.0, y9, 2.5, 1.55, "MEMORY · CONSOLIDATION", "生成 Episode", "Memory System 形成 session-level episode", { fill: C.warm, labelColor: C.orange, fontSize: 10.5, headSize: 14.0 });
+arrow(s, LEFT + 8.55, y9 + 0.48);
+box(s, LEFT + 9.0, y9, 3.1, 1.55, "MEMORY · REFLECTION", "生成跨任务方法", "Memory System 形成 actor-level reflections", { fill: C.good, labelColor: C.green, fontSize: 10.5, headSize: 14.0 });
+stat(s, LEFT + 1.1, 4.15, 3.4, "1", "Memory System · session-level episode", C.orange);
+stat(s, LEFT + 4.85, 4.15, 3.4, "2", "Memory System · actor-level reflections", C.bblue);
+stat(s, LEFT + 8.6, 4.15, 3.4, "新 session", "AgentCore Harness · Retrieval 调用 + 注入", C.green);
+callout(s, "Memory System：检索 actor Records　|　AgentCore Harness：注入上下文　|　接收方：新 Harness Agent", 5.95);
 
 // 12. Actual memory
 s = p.addSlide(); base(s, "EXPERIMENT 2 · REAL MEMORY", 12);
-title(s, "AgentCore Memory System 实际生成的 Records", "以下内容均由内置 EPISODIC strategy 异步生成，不是 Harness Agent 手工写入的规则。");
+title(s, "Memory System · EPISODIC 实际生成的 Records", "Memory System 在 Consolidation 阶段生成 session-level episode，在 Reflection 阶段生成 actor-level reflections。");
 box(s, LEFT, 1.82, 4.0, 4.3, "MEMORY SYSTEM · EPISODE RECORD", "两阶段流程设计有效",
   "先输出 self_review 再执行修订，避免一次性处理复杂文档时遗漏问题。\n\n对于 OCR 错误、章节跳号、重复表格和图片内容，分阶段结构化抽取是推荐模式。\n\n不可完整提取的内容应显式说明限制。", { fill: C.cyan, labelColor: C.bblue, fontSize: 13 });
 box(s, LEFT + 4.25, 1.82, 3.85, 4.3, "MEMORY SYSTEM · ACTOR REFLECTION 1", "Two-Phase Structured Extraction",
@@ -384,16 +390,16 @@ box(s, LEFT + 8.35, 1.82, 3.75, 4.3, "MEMORY SYSTEM · ACTOR REFLECTION 2", "Inl
 sectionSlide(
   13,
   3,
-  "留出文档：只改变 Memory 开关",
-  "源任务已经结束；现在换一份全新电机图纸，验证跨 session 召回是否改变抽取行为。",
-  "实验边界：两组目标调用配置相同；唯一变量是 Memory System 是否检索并注入 records。",
+  "Application 启动留出实验：只改变 Retrieval 开关",
+  "Application 为同一电机图纸创建两组 fresh sessions；Harness Agent 使用相同配置执行抽取。",
+  "实验边界：enabled 组由 Memory System 执行 Retrieval、AgentCore Harness 注入 Records；disabled 组不接收 Records。",
   C.green,
 );
 
 // 14. Controlled target experiment
 s = p.addSlide(); base(s, "EXPERIMENT 3 · CONTROL", 14);
-title(s, "Harness Agent 留出实验：目标端只改变 Memory 开关", "目标抽取由 Harness Agent 完成；Memory System 只在 enabled 组负责自动检索并注入 records。");
-codebox(s, LEFT, 1.78, 5.95, 3.9, "HARNESS AGENT · 目标抽取 Prompt", [
+title(s, "Application 控制变量；Harness Agent 执行目标抽取", "Application 固定两组配置；enabled 组由 Memory System 检索 Records、AgentCore Harness 注入上下文。", 25);
+codebox(s, LEFT, 1.78, 5.95, 3.9, "APPLICATION 提供 → HARNESS AGENT 执行", [
   "根据用户文档抽取所有可识别的技术要求/参数。",
   "",
   "每条输出：",
@@ -403,13 +409,13 @@ codebox(s, LEFT, 1.78, 5.95, 3.9, "HARNESS AGENT · 目标抽取 Prompt", [
   "先在内部自审覆盖、遗漏、格式和粒度，",
   "再只输出最终合法 JSON。",
 ].join("\n"), C.bblue, 11.3);
-box(s, LEFT + 6.2, 1.78, 5.9, 3.9, "控制变量", "Harness Agent 配置相同",
-  "· 同一测试文档与 system prompt\n· claude-sonnet-4-6\n· temperature=0 · maxTokens=32768\n· skills=[] · tools=[]\n· 两组均使用全新 session\n\nMemory 组：EPISODIC retrieval enabled\nNo Memory 组：Memory disabled", { fill: C.card, labelColor: C.green, fontSize: 13.3 });
-callout(s, "执行主体：Harness Agent　|　实验变量：Memory System 是否检索并注入 source actor records", 5.95, C.green);
+box(s, LEFT + 6.2, 1.78, 5.9, 3.9, "APPLICATION · 实验控制", "Application 固定 Harness Agent 配置",
+  "· 同一测试文档与 system prompt\n· claude-sonnet-4-6\n· temperature=0 · maxTokens=32768\n· skills=[] · tools=[]\n· 两组均使用全新 session\n\nEnabled：Memory Retrieval + Harness Injection\nDisabled：不检索、不注入历史 Records", { fill: C.card, labelColor: C.green, fontSize: 13.0 });
+callout(s, "Application 控制变量　|　Memory System 检索　|　AgentCore Harness 注入　|　Harness Agent 抽取", 5.95, C.green);
 
 // 15. Key result
 s = p.addSlide(); base(s, "EXPERIMENT 3 · KEY RESULT", 15);
-title(s, "重点结果：31 vs 11", "两组都由 Harness Agent 输出；Memory 组在推理前接收了 Memory System 检索并注入的 records。");
+title(s, "Harness Agent 结果：31 vs 11", "Enabled 组由 Memory System 检索 EPISODIC Records、AgentCore Harness 注入；两组 Harness Agent 使用相同 Prompt。");
 stat(s, LEFT, 1.78, 4.85, "31 条", "Memory enabled", C.green);
 s.addText("VS", {
   x: LEFT + 5.05, y: 2.08, w: 1.35, h: 0.58, fontFace: FH,
@@ -417,46 +423,45 @@ s.addText("VS", {
 });
 stat(s, LEFT + 6.58, 1.78, 4.85, "11 条", "Memory disabled", C.bblue);
 rect(s, LEFT, 3.38, MW, 1.08, C.good, C.green);
-s.addText("多出的 20 条主要来自两张 BOM：Memory 让 Agent 把零部件表和组件表系统展开。", {
+s.addText("AgentCore Harness 注入 Memory Records 后，Harness Agent 多输出约 20 条；新增内容主要来自两张 BOM。", {
   x: LEFT + 0.35, y: 3.38, w: MW - 0.7, h: 1.08, fontFace: FH,
   fontSize: 19, bold: true, color: C.green, align: "center", valign: "middle", margin: 0,
 });
-box(s, LEFT, 4.72, 5.86, 1.35, "MEMORY 组新增示例", "零部件表", "机座 · 前端盖 · 转子 · 轴承", { fill: C.card, labelColor: C.green, fontSize: 13.2, headSize: 15 });
-box(s, LEFT + 6.24, 4.72, 5.86, 1.35, "MEMORY 组新增示例", "组件表", "壳体组件 · 法兰盘组件 · 散热器组件", { fill: C.card, labelColor: C.green, fontSize: 13.2, headSize: 15 });
-callout(s, "人眼检查：新增条目基本有原文依据；结论是覆盖关注点扩大，不是“质量提升 3 倍”。", 6.15, C.orange);
+box(s, LEFT, 4.72, 5.86, 1.35, "HARNESS AGENT · ENABLED 输出", "零部件表", "机座 · 前端盖 · 转子 · 轴承", { fill: C.card, labelColor: C.green, fontSize: 13.2, headSize: 15 });
+box(s, LEFT + 6.24, 4.72, 5.86, 1.35, "HARNESS AGENT · ENABLED 输出", "组件表", "壳体组件 · 法兰盘组件 · 散热器组件", { fill: C.card, labelColor: C.green, fontSize: 13.2, headSize: 15 });
+callout(s, "Reviewer 人工核对：新增条目基本有原文依据；该实验说明覆盖关注点扩大，不等于质量提升 3 倍。", 6.15, C.orange);
 
 // 16. Reconcile
 s = p.addSlide(); base(s, "EXPERIMENT SYNTHESIS", 16);
-title(s, "三个实验合起来，结论才完整", "抽象自省、Memory 生成和留出验证是三项独立实验，不是一个连续的“抽取方法二”。");
-const head = (text) => ({ text, options: { bold: true, color: C.white, fill: C.blue, fontFace: FB, fontSize: 12.5 } });
-const cell = (text, fill = C.card, color = C.body, bold = false) => ({ text, options: { color, fill, bold, fontFace: FB, fontSize: 12.2, valign: "middle" } });
+title(s, "三项实验：主体、输入、产物与结论边界", "Application 编排实验；Harness Agent 负责抽取；应用侧 LLM 或 Memory System 负责不同类型的经验形成；Reviewer 负责质量判断。");
+const head = (text) => ({ text, options: { bold: true, color: C.white, fill: C.blue, fontFace: FB, fontSize: 11.5 } });
+const cell = (text, fill = C.card, color = C.body, bold = false) => ({ text, options: { color, fill, bold, fontFace: FB, fontSize: 10.4, valign: "middle" } });
 s.addTable([
   [head("实验"), head("实验一 · 学习信号"), head("实验二 · Memory 生成"), head("实验三 · 留出验证")],
-  [cell("核心问题", C.bg2, C.white, true), cell("只看输出能学到什么？", C.bad), cell("怎样产生可提炼轨迹？", C.cyan), cell("Memory 是否改变下一任务？", C.good)],
-  [cell("执行主体", C.bg2, C.white, true), cell("应用侧 LLM 反思/合并", C.bad), cell("Harness Agent + Memory System", C.cyan), cell("Harness Agent；Memory 开关", C.good)],
-  [cell("输入/变量", C.bg2, C.white, true), cell("只有已抽取结果", C.bad), cell("原文 + 草稿 + self_review", C.cyan), cell("同配置；只改变 Memory", C.good)],
-  [cell("实际产物", C.bg2, C.white, true), cell("15 条 canonical rules", C.bad), cell("1 episode + 2 reflections", C.cyan), cell("31 条 vs 11 条", C.good, C.green, true)],
-  [cell("观察", C.bg2, C.white, true), cell("90→102，主要拆分变细", C.bad, C.orange, true), cell("形成覆盖/遗漏处理方法", C.cyan), cell("两张 BOM 被系统展开", C.good, C.green, true)],
-  [cell("结论边界", C.bg2, C.white, true), cell("看不见整块遗漏", C.bad), cell("证明托管 Memory 可生成", C.cyan), cell("证明关注点发生变化", C.good)],
+  [cell("核心问题", C.bg2, C.white, true), cell("Reflection LLM 仅看 Harness Agent 输出", C.bad), cell("Memory System 能否从轨迹生成 Records", C.cyan), cell("注入后 Harness Agent 输出是否变化", C.good)],
+  [cell("执行主体", C.bg2, C.white, true), cell("Application + Reflection LLM + Consolidation LLM", C.bad), cell("Application + Harness Agent + Memory System", C.cyan), cell("Application + Memory System + AgentCore Harness + Harness Agent + Reviewer", C.good)],
+  [cell("输入/变量", C.bg2, C.white, true), cell("Reflection LLM 仅收 Harness Agent JSON", C.bad), cell("Memory System 接收完整 session events", C.cyan), cell("Application 只切换 Retrieval + Injection", C.good)],
+  [cell("实际产物", C.bg2, C.white, true), cell("Consolidation LLM：15 条 rules", C.bad), cell("Memory System：1 episode + 2 reflections", C.cyan), cell("Harness Agent：31 条 vs 11 条", C.good, C.green, true)],
+  [cell("观察", C.bg2, C.white, true), cell("Harness Agent 输出 90→102，主要拆分变细", C.bad, C.orange, true), cell("Memory Records 包含覆盖/遗漏处理方法", C.cyan), cell("Enabled Harness Agent 展开两张 BOM", C.good, C.green, true)],
+  [cell("结论边界", C.bg2, C.white, true), cell("Reflection LLM 看不见整块遗漏", C.bad), cell("EPISODIC Records 可生成", C.cyan), cell("关注点变化；质量由 Reviewer 判断", C.good)],
 ], {
   x: LEFT, y: 1.82, w: MW, h: 3.9, colW: [1.85, 3.35, 3.45, 3.45],
   rowH: [0.46, 0.5, 0.5, 0.5, 0.52, 0.54, 0.5],
-  border: { pt: 0.75, color: C.line }, fontFace: FB, fontSize: 11.7,
+  border: { pt: 0.75, color: C.line }, fontFace: FB, fontSize: 10.7,
 });
-callout(s, "统一结论：原文驱动的 Review 产生了可复用 Memory，并在留出文档上把 BOM 覆盖从零散变为系统展开。", 5.95);
 
 // 17. Best practices
 s = p.addSlide(); base(s, "BEST PRACTICES", 17);
-title(s, "结构化数据抽取的 Memory 最佳实践", "把 Memory 设计成可验证的学习回路，而不是无限累积的历史上下文。");
+title(s, "各组件在 Memory 学习回路中的最佳实践", "每条实践都明确责任主体，避免把 Application 编排、Harness Agent 推理和 Memory System 托管能力混为一谈。");
 const items = [
   ["1", "Harness Agent · Review 看原文", "不要只对输出做抽象总结。"],
   ["2", "Harness Agent · 输出 Artifact", "固定 coverage / omissions / format / granularity。"],
-  ["3", "Harness Agent · 产出动作", "生成明确、可执行的 next_actions。"],
-  ["4", "任务设计 · 区分问题", "源覆盖可自审；任务边界需要规范或 Reviewer。"],
-  ["5", "Memory 内容 · 保存方法", "描述何时适用、检查什么、避免什么，不保存答案。"],
-  ["6", "Memory System · 区分 Records", "Episode 记录一次任务；Reflection 沉淀跨任务方法。"],
-  ["7", "Harness 配置 · 控制召回", "限制 topK、清理噪声、避免长 episode 撑爆上下文。"],
-  ["8", "Evaluation · 人工校准", "分别检查忠实性、完整性、粒度与过度抽取。"],
+  ["3", "Application · 编排两阶段", "顺序调用 Review 与 Revision，并保持同一 session。"],
+  ["4", "Reviewer / Human · 定义边界", "Harness Agent 自审源覆盖；Reviewer 定义业务边界。"],
+  ["5", "Memory 设计者 · 保存方法", "要求 Records 描述何时适用、检查什么、避免什么。"],
+  ["6", "Memory System · 区分 Records", "EPISODIC：Episode 记一次任务；Reflection 沉淀跨任务方法。"],
+  ["7", "AgentCore Harness · 控制注入", "调用 Retrieval、设置 topK，并记录向 Harness Agent 注入的 Records。"],
+  ["8", "Reviewer / Human · 校准结果", "分别检查忠实性、完整性、粒度、过度抽取和业务边界。"],
 ];
 items.forEach((it, i) => {
   const col = i % 2, row = Math.floor(i / 2);
@@ -477,7 +482,7 @@ items.forEach((it, i) => {
   });
 });
 rect(s, LEFT + 1.2, 6.18, MW - 2.4, 0.55, C.bg2, C.bblue);
-s.addText("Memory 的价值不是记住历史答案，而是复用经过 Review 得到的抽取策略。", {
+s.addText("Harness Agent 产 Review；Memory System 生成/检索；AgentCore Harness 注入；Reviewer / Human 判断质量。", {
   x: LEFT + 1.48, y: 6.18, w: MW - 2.96, h: 0.55,
   fontFace: FH, fontSize: 15.5, bold: true, color: C.bblue,
   align: "center", valign: "middle", margin: 0,
